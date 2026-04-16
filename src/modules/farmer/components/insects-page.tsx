@@ -1,0 +1,238 @@
+"use client";
+
+import { useFarmerStore } from "@/modules/farmer/store";
+import { INSECT_KINDS } from "@/lib/mock-data";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { InsectKind } from "@/modules/shared/types";
+import {
+  MapPin,
+  Clock,
+  Navigation,
+  ScanLine,
+  ChevronRight,
+  X,
+} from "lucide-react";
+
+function InsectKindTile({
+  kind,
+  label,
+  emoji,
+  description,
+  count,
+  selected,
+  onClick,
+}: {
+  kind: InsectKind;
+  label: string;
+  emoji: string;
+  description: string;
+  count: number;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 group",
+        selected
+          ? "border-[var(--green-deep)] bg-[var(--green-pale)]/30 shadow-md"
+          : "border-[var(--border-subtle)] bg-white hover:border-[var(--green-light)] hover:shadow-sm"
+      )}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-3xl">{emoji}</span>
+        <span
+          className={cn(
+            "text-xs font-bold px-2.5 py-1 rounded-full",
+            selected
+              ? "bg-[var(--green-deep)] text-white"
+              : "bg-[var(--bg-cream)] text-[var(--text-muted)]"
+          )}
+        >
+          {count}
+        </span>
+      </div>
+      <h3 className="font-display font-bold text-lg text-[var(--green-deep)] mb-0.5">
+        {label}
+      </h3>
+      <p className="text-xs text-[var(--text-muted)]">{description}</p>
+      <div
+        className={cn(
+          "flex items-center gap-1 text-xs font-medium mt-3 transition-all",
+          selected
+            ? "text-[var(--green-deep)]"
+            : "text-[var(--text-light)] group-hover:text-[var(--green-deep)]"
+        )}
+      >
+        View captures <ChevronRight size={12} />
+      </div>
+    </button>
+  );
+}
+
+function CaptureCard({
+  capture,
+}: {
+  capture: {
+    id: string;
+    kind: InsectKind;
+    commonName: string;
+    scientificName: string;
+    timestamp: string;
+    lat: number;
+    lng: number;
+    trajectory?: string;
+    aiConfidence: number;
+    notes?: string;
+  };
+}) {
+  const kindMeta = INSECT_KINDS.find((k) => k.kind === capture.kind);
+
+  return (
+    <div className="bg-white rounded-2xl border border-[var(--border-subtle)] p-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[var(--green-pale)]/50 flex items-center justify-center text-xl shrink-0">
+          {kindMeta?.emoji}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-dark)]">
+                {capture.commonName}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] italic">
+                {capture.scientificName}
+              </p>
+            </div>
+            <Badge variant="green" className="shrink-0">
+              {capture.aiConfidence.toFixed(0)}% AI
+            </Badge>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              <Clock size={11} />
+              <span className="truncate">
+                {new Date(capture.timestamp).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              <MapPin size={11} />
+              <span className="truncate">
+                {capture.lat.toFixed(3)}, {capture.lng.toFixed(3)}
+              </span>
+            </div>
+            {capture.trajectory && (
+              <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                <Navigation size={11} />
+                <span className="truncate">{capture.trajectory}</span>
+              </div>
+            )}
+          </div>
+
+          {capture.notes && (
+            <p className="mt-2 text-xs text-[var(--text-muted)] bg-[var(--bg-cream)]/60 rounded-lg px-3 py-2 italic">
+              &ldquo;{capture.notes}&rdquo;
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function InsectsPage() {
+  const { captures, selectedKind, setSelectedKind, startScan, liveScan } =
+    useFarmerStore();
+
+  const displayedCaptures = selectedKind
+    ? captures.filter((c) => c.kind === selectedKind)
+    : captures;
+
+  const capturesWithCounts = INSECT_KINDS.map((k) => ({
+    ...k,
+    count: captures.filter((c) => c.kind === k.kind).length,
+  }));
+
+  return (
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="font-display font-bold text-3xl text-[var(--green-deep)]">
+            Insects
+          </h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
+            {captures.length} total captures across 4 species categories
+          </p>
+        </div>
+        <Button onClick={startScan} disabled={liveScan.isScanning}>
+          <ScanLine size={15} />
+          {liveScan.isScanning ? "Scanning…" : "New Scan"}
+        </Button>
+      </div>
+
+      {/* Insect kind tiles */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {capturesWithCounts.map((k) => (
+          <InsectKindTile
+            key={k.kind}
+            {...k}
+            selected={selectedKind === k.kind}
+            onClick={() =>
+              setSelectedKind(selectedKind === k.kind ? null : k.kind)
+            }
+          />
+        ))}
+      </div>
+
+      {/* Capture list */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-base">
+              {selectedKind
+                ? `${INSECT_KINDS.find((k) => k.kind === selectedKind)?.label} Captures`
+                : "All Captures"}
+              <span className="ml-2 text-sm font-normal text-[var(--text-muted)]">
+                ({displayedCaptures.length})
+              </span>
+            </CardTitle>
+            {selectedKind && (
+              <button
+                onClick={() => setSelectedKind(null)}
+                className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-dark)] transition-colors"
+              >
+                <X size={12} /> Clear filter
+              </button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {displayedCaptures.length === 0 ? (
+            <div className="text-center py-12 text-[var(--text-muted)]">
+              <span className="text-4xl block mb-3">🔍</span>
+              <p className="text-sm">No captures yet for this insect type.</p>
+              <Button onClick={startScan} className="mt-4" size="sm">
+                Start scanning
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {displayedCaptures.map((capture) => (
+                <CaptureCard key={capture.id} capture={capture} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

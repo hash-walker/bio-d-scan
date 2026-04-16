@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --bg-cream: #EDE8DC;
+  --bg-card: #FFFFFF;
+  --green-deep: #1A3C28;
+  --green-mid: #2D5A3F;
+  --green-light: #4A8A5D;
+  --green-pale: #C8DDD0;
+  --amber-deep: #6B3E1A;
+  --amber-mid: #8B5A2B;
+  --amber-light: #C17F3A;
+  --text-dark: #1A2018;
+  --text-muted: #6B7568;
+  --text-light: #9BA89A;
+  --border-subtle: #DDD8CC;
+  --alert-red: #C0392B;
+  --alert-yellow: #D4A017;
+}
+
+@theme inline {
+  --color-background: var(--bg-cream);
+  --color-foreground: var(--text-dark);
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-cream);
+  color: var(--text-dark);
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grid background pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(90, 80, 60, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 80, 60, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-cream);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--green-pale);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--green-light);
+}
+
+/* Font utilities */
+.font-display {
+  font-family: var(--font-playfair), Georgia, serif;
+}
