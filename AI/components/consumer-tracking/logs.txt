@@ -1,0 +1,61 @@
+muneeb@raspi:~/dev/cvml-at-the-edge/components/consumer-tracking $ ./infer-insects.sh 
+Setting up the environment...
+Setting up the environment for hailo-tappas-core...
+TAPPAS_VERSION is 3.31.0. Proceeding...
+You are not in the venv_hailo_rpi5_examples virtual environment.
+Virtual environment exists. Activating...
+Installing Python dependencies from requirements.txt...
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Requirement already satisfied: pip in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (26.0.1)
+WARNING: Error parsing dependencies of send2trash: Expected matching RIGHT_PARENTHESIS for LEFT_PARENTHESIS, after version specifier
+    sys-platform (=="darwin") ; extra == 'objc'
+                 ~^
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Requirement already satisfied: supervision>=0.16.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from -r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (0.27.0.post2)
+Requirement already satisfied: opencv-python>=4.8.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from -r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 2)) (4.13.0.92)
+Requirement already satisfied: boto3>=1.26.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from -r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (1.42.88)
+Requirement already satisfied: numpy>=1.24.0 in /usr/local/lib/python3.11/dist-packages (from -r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 4)) (2.4.2)
+Requirement already satisfied: setproctitle>=1.3.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from -r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 5)) (1.3.7)
+Requirement already satisfied: scipy>=1.10.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (1.17.1)
+Requirement already satisfied: matplotlib>=3.6.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (3.10.8)
+Requirement already satisfied: pyyaml>=5.3 in /usr/lib/python3/dist-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (6.0)
+Requirement already satisfied: defusedxml>=0.7.1 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (0.7.1)
+Requirement already satisfied: pillow>=9.4 in /usr/lib/python3/dist-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (9.4.0)
+Requirement already satisfied: requests>=2.26.0 in /usr/lib/python3/dist-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (2.28.1)
+Requirement already satisfied: tqdm>=4.62.3 in /usr/lib/python3/dist-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (4.64.1)
+Requirement already satisfied: pyDeprecate<0.6.0,>=0.4.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (0.5.0)
+Requirement already satisfied: botocore<1.43.0,>=1.42.88 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from boto3>=1.26.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (1.42.88)
+Requirement already satisfied: jmespath<2.0.0,>=0.7.1 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from boto3>=1.26.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (1.1.0)
+Requirement already satisfied: s3transfer<0.17.0,>=0.16.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from boto3>=1.26.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (0.16.0)
+Requirement already satisfied: python-dateutil<3.0.0,>=2.1 in /usr/local/lib/python3.11/dist-packages (from botocore<1.43.0,>=1.42.88->boto3>=1.26.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (2.9.0.post0)
+Requirement already satisfied: urllib3!=2.2.0,<3,>=1.25.4 in /usr/lib/python3/dist-packages (from botocore<1.43.0,>=1.42.88->boto3>=1.26.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (1.26.12)
+Requirement already satisfied: six>=1.5 in /usr/lib/python3/dist-packages (from python-dateutil<3.0.0,>=2.1->botocore<1.43.0,>=1.42.88->boto3>=1.26.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 3)) (1.16.0)
+Requirement already satisfied: contourpy>=1.0.1 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from matplotlib>=3.6.0->supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (1.3.3)
+Requirement already satisfied: cycler>=0.10 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from matplotlib>=3.6.0->supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from matplotlib>=3.6.0->supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (4.62.1)
+Requirement already satisfied: kiwisolver>=1.3.1 in ./venv_hailo_rpi5_examples/lib/python3.11/site-packages (from matplotlib>=3.6.0->supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (1.5.0)
+Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.11/dist-packages (from matplotlib>=3.6.0->supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (26.0)
+Requirement already satisfied: pyparsing>=3 in /usr/local/lib/python3.11/dist-packages (from matplotlib>=3.6.0->supervision>=0.16.0->-r /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/requirements.txt (line 1)) (3.3.2)
+WARNING: Error parsing dependencies of send2trash: Expected matching RIGHT_PARENTHESIS for LEFT_PARENTHESIS, after version specifier
+    sys-platform (=="darwin") ; extra == 'objc'
+                 ~^
+TAPPAS_POST_PROC_DIR set to /usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes
+DEVICE_ARCHITECTURE is set to: HAILO8
+Warning: AWS region not set. Cloud publishing is disabled.
+Saving local detection backups to: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260414_225938
+Auto-detected Hailo architecture: hailo8
+Using TAPPAS libraries from: /usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes
+Using post-process library: /usr/local/hailo/resources/so/libyolo_hailortpp_postprocess.so
+Using cropper library: /usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/cropping_algorithms/libwhole_buffer.so
+shmsrc socket-path=/tmp/feed.raw do-timestamp=true is-live=true ! video/x-raw, format=NV12, width=1920, height=1080, framerate=30/1 ! videoconvert ! video/x-raw, format=RGB, width=1920, height=1080, framerate=30/1 ! hailocropper so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/cropping_algorithms/libwhole_buffer.so function-name=create_crops use-letterbox=true resize-method=inter-area internal-offset=true name=cropper1 hailoaggregator name=agg1 cropper1. ! queue name=bypess1_q leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! agg1. cropper1. ! queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! videoscale qos=false n-threads=2 ! video/x-raw, pixel-aspect-ratio=1/1 ! queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! hailonet hef-path=insect_yolov8n.hef batch-size=1 ! queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! hailofilter so-path=/usr/local/hailo/resources/so/libyolo_hailortpp_postprocess.so qos=false ! queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! agg1. agg1. ! hailotracker name=hailo_tracker keep-tracked-frames=3 keep-new-frames=3 keep-lost-frames=3 ! queue name=queue_user_callback leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! identity name=identity_callback signal-handoffs=true ! queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! hailooverlay qos=false line-thickness=4 font-thickness=4 ! queue leaky=no max-size-buffers=30 max-size-bytes=0 max-size-time=0 ! videoconvert n-threads=2 qos=false ! video/x-raw, format=RGB, width=1920, height=1080, framerate=30/1 ! shmsink socket-path=/tmp/infered.feed sync=false wait-for-connection=false
+[HailoRT] [error] CHECK failed - Failed to create vdevice. there are not enough free devices. requested: 1, found: 0
+[HailoRT] [error] CHECK_SUCCESS failed with status=HAILO_OUT_OF_PHYSICAL_DEVICES(74)
+[HailoRT] [error] CHECK_SUCCESS failed with status=HAILO_OUT_OF_PHYSICAL_DEVICES(74)
+[HailoRT] [error] CHECK_SUCCESS failed with status=HAILO_OUT_OF_PHYSICAL_DEVICES(74)
+[HailoRT] [error] CHECK_SUCCESS failed with status=HAILO_OUT_OF_PHYSICAL_DEVICES(74)
+CHECK_EXPECTED failed with status=74
+Showing FPS
+Warning: hailo_display element not found in pipeline. FPS measurements will not be shown.
+Warning: hailo_display element not found, add <fpsdisplaysink name=hailo_display> to your pipeline to support fps display.
+/home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/infer.sh: line 15:  9870 Segmentation fault      python detection.py -i rpi -u -f --hef-path "${MODEL_HEF}" --labels-json "${LABELS_JSON}"
+muneeb@raspi:~/dev/cvml-at-the-edge/components/consumer-tracking $ 
