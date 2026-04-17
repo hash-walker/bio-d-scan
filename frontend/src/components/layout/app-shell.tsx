@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, type LucideIcon } from "lucide-react";
+import { Menu, X, LogOut, type LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Bug,
@@ -47,6 +47,7 @@ interface AppShellProps {
   userSub?: string;
   portalLabel?: string;
   portalSub?: string;
+  onLogout?: () => void;
 }
 
 // pathname and activeHref are passed from AppShell so both sidebar instances
@@ -69,6 +70,7 @@ function SidebarContent({
   pathname,
   activeHref,
   onNavClick,
+  onLogout,
 }: SidebarContentProps) {
   const CtaIcon = ctaIconName ? ICON_MAP[ctaIconName] : null;
 
@@ -142,7 +144,7 @@ function SidebarContent({
 
       {/* CTA */}
       {ctaHref && ctaLabel && (
-        <div className="px-3 pb-5">
+        <div className="px-3 pb-2">
           <Link
             href={ctaHref}
             onClick={() => onNavClick(ctaHref)}
@@ -151,6 +153,19 @@ function SidebarContent({
             {CtaIcon && <CtaIcon size={15} />}
             {ctaLabel}
           </Link>
+        </div>
+      )}
+
+      {/* Logout */}
+      {onLogout && (
+        <div className="px-3 pb-5">
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:bg-red-50 hover:text-red-500 transition-colors"
+          >
+            <LogOut size={13} />
+            Sign out
+          </button>
         </div>
       )}
     </>
@@ -167,6 +182,7 @@ export function AppShell({
   userSub,
   portalLabel = "Bio D. Scan",
   portalSub,
+  onLogout,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Single source of truth for the current path — passed to both sidebar
@@ -207,6 +223,7 @@ export function AppShell({
     pathname,
     activeHref,
     onNavClick: handleNavClick,
+    onLogout,
   };
 
   return (

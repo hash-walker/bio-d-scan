@@ -12,9 +12,20 @@ class ApiError extends Error {
   }
 }
 
+function getToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)bioscan_token=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
     ...init,
   });
 
@@ -88,6 +99,64 @@ export interface GovOverview {
   totalCaptures: number;
   capturesByKind: Record<string, number>;
 }
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: "farmer" | "government";
+  name: string;
+  department: string | null;
+  farmerId: string | null;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export interface RegisterFarmerPayload {
+  email: string;
+  password: string;
+  name: string;
+  farm_name: string;
+  phone?: string;
+  location: string;
+  lat?: number;
+  lng?: number;
+  field_area_ha: number;
+  farming_method: "organic" | "transitioning" | "commercial";
+  water_source: "rainFed" | "irrigated" | "mixed";
+  primary_crops?: string;
+}
+
+export interface RegisterGovernmentPayload {
+  email: string;
+  password: string;
+  name: string;
+  department: string;
+}
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    request<AuthResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  registerFarmer: (data: RegisterFarmerPayload) =>
+    request<AuthResponse>("/auth/register/farmer", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  registerGovernment: (data: RegisterGovernmentPayload) =>
+    request<AuthResponse>("/auth/register/government", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  me: () => request<AuthUser>("/auth/me"),
+};
 
 // ─── Farmers ─────────────────────────────────────────────────────────────────
 

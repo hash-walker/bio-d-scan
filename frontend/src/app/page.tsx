@@ -22,7 +22,7 @@ export default function RoleSelector() {
       {/* Role cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
         {/* Farmer */}
-        <Link href="/dashboard" className="group">
+        <Link href="/auth/signin?role=farmer" className="group">
           <div className="bg-white rounded-3xl p-8 border border-[var(--border-subtle)] shadow-sm hover:shadow-md hover:border-[var(--green-light)] transition-all duration-200 h-full flex flex-col">
             <div className="w-14 h-14 rounded-2xl bg-[var(--green-pale)]/60 flex items-center justify-center mb-5">
               <Leaf size={28} className="text-[var(--green-deep)]" />
@@ -35,13 +35,13 @@ export default function RoleSelector() {
               the marketplace to redeem your rewards.
             </p>
             <div className="flex items-center gap-2 text-sm font-medium text-[var(--green-deep)] group-hover:gap-3 transition-all">
-              Enter as Farmer <ArrowRight size={16} />
+              Sign in as Farmer <ArrowRight size={16} />
             </div>
           </div>
         </Link>
 
         {/* Government */}
-        <Link href="/gov/dashboard" className="group">
+        <Link href="/auth/signin?role=government" className="group">
           <div className="bg-[var(--green-deep)] rounded-3xl p-8 border border-[var(--green-deep)] shadow-sm hover:shadow-md transition-all duration-200 h-full flex flex-col">
             <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mb-5">
               <Building2 size={28} className="text-white" />
@@ -54,7 +54,7 @@ export default function RoleSelector() {
               monitoring, and carbon credit distribution.
             </p>
             <div className="flex items-center gap-2 text-sm font-medium text-white group-hover:gap-3 transition-all">
-              Enter as Government <ArrowRight size={16} />
+              Sign in as Government <ArrowRight size={16} />
             </div>
           </div>
         </Link>

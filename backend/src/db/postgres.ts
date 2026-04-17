@@ -79,5 +79,22 @@ async function runMigrations(client: { query: (sql: string) => Promise<unknown> 
     );
   `);
 
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email         TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role          TEXT NOT NULL CHECK (role IN ('farmer', 'government')),
+      name          TEXT NOT NULL,
+      department    TEXT,
+      farmer_id     UUID REFERENCES farmers(id) ON DELETE SET NULL,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+  `);
+
   log.info("PostgreSQL migrations complete");
 }

@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { farmersApi } from "@/lib/api";
+import { authApi } from "@/lib/api";
 import {
   MapPin,
   Droplets,
@@ -18,6 +18,8 @@ import {
   Leaf,
   Waves,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const STEPS = ["Identity", "Land Stewardship", "Ecosystem", "Review"] as const;
@@ -26,6 +28,8 @@ const step1Schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   farmName: z.string().min(2, "Farm name is required"),
   phone: z.string().min(10, "Valid phone number required"),
+  email: z.string().email("Valid email required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const step2Schema = z.object({
@@ -36,8 +40,8 @@ const step2Schema = z.object({
     .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, {
       message: "Field area must be a positive number",
     }),
-  farmingMethod: z.enum(["organic", "transitioning", "commercial"]),
-  waterSource: z.enum(["rainFed", "irrigated", "mixed"]),
+  // farmingMethod and waterSource are controlled via React state (slider + pill buttons)
+  // so they are excluded from the schema and merged in onStep2 manually.
 });
 
 const step3Schema = z.object({
@@ -47,6 +51,7 @@ const step3Schema = z.object({
 });
 
 type Step1Data = z.infer<typeof step1Schema>;
+
 type Step2Data = z.infer<typeof step2Schema>;
 type Step3Data = z.infer<typeof step3Schema>;
 
@@ -59,10 +64,10 @@ export function OnboardingWizard() {
   const [sliderValue, setSliderValue] = useState(20);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   const form1 = useForm<Step1Data>({ resolver: zodResolver(step1Schema) });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const form2 = useForm<any>({ resolver: zodResolver(step2Schema) });
+  const form2 = useForm<Step2Data>({ resolver: zodResolver(step2Schema) });
   const form3 = useForm<Step3Data>({ resolver: zodResolver(step3Schema) });
 
   const progress = ((step + 1) / STEPS.length) * 100;
@@ -73,6 +78,7 @@ export function OnboardingWizard() {
   };
 
   const onStep2 = (data: Step2Data) => {
+    // Merge validated form fields with state-driven farmingMethod + waterSource
     setFormData((p) => ({ ...p, ...data, farmingMethod, waterSource }));
     setStep(2);
   };
@@ -86,7 +92,9 @@ export function OnboardingWizard() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      await farmersApi.create({
+      const { token, user } = await authApi.registerFarmer({
+        email: formData.email!,
+        password: formData.password!,
         name: formData.name!,
         farm_name: formData.farmName!,
         phone: formData.phone,
@@ -96,9 +104,15 @@ export function OnboardingWizard() {
         water_source: waterSource,
         primary_crops: formData.primaryCrops,
       });
+      // Store token in cookie and auth store
+      document.cookie = `bioscan_token=${encodeURIComponent(token)};path=/;max-age=${7 * 86400};SameSite=Lax`;
+      const { useAuthStore } = await import("@/modules/auth/store");
+      useAuthStore.setState({ user });
       router.push("/dashboard");
-    } catch {
-      setSubmitError("Could not register your farm. Please check your connection and try again.");
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Could not register your farm. Please try again."
+      );
       setIsSubmitting(false);
     }
   };
@@ -206,6 +220,43 @@ export function OnboardingWizard() {
                   />
                   {form1.formState.errors.phone && (
                     <p className="text-xs text-red-500 mt-1">{form1.formState.errors.phone.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    {...form1.register("email")}
+                    type="email"
+                    placeholder="you@example.com"
+                    className="w-full border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--green-light)] bg-[var(--bg-cream)]/30"
+                  />
+                  {form1.formState.errors.email && (
+                    <p className="text-xs text-red-500 mt-1">{form1.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      {...form1.register("password")}
+                      type={showPw ? "text" : "password"}
+                      placeholder="Min. 6 characters"
+                      className="w-full border border-[var(--border-subtle)] rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:border-[var(--green-light)] bg-[var(--bg-cream)]/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((v) => !v)}
+                      className="absolute right-3 top-3.5 text-[var(--text-muted)] hover:text-[var(--text-dark)] transition-colors"
+                    >
+                      {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {form1.formState.errors.password && (
+                    <p className="text-xs text-red-500 mt-1">{form1.formState.errors.password.message}</p>
                   )}
                 </div>
                 <Button type="submit" className="w-full mt-2" size="lg">
@@ -384,6 +435,7 @@ export function OnboardingWizard() {
                 <div className="space-y-2">
                   {[
                     { label: "Name", value: formData.name || "—" },
+                    { label: "Email", value: formData.email || "—" },
                     { label: "Farm", value: formData.farmName || "—" },
                     { label: "Location", value: formData.location || "—" },
                     { label: "Field Area", value: formData.fieldArea ? `${formData.fieldArea} ha` : "—" },

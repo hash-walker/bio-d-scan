@@ -1,0 +1,17 @@
+# ── Development image ─────────────────────────────────────────────────────────
+# Source code is mounted as a volume — Next.js dev server handles HMR.
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+# Config files that Next.js needs at runtime
+COPY next.config.ts tsconfig.json postcss.config.mjs ./
+
+EXPOSE 3000
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+CMD ["npm", "run", "dev"]

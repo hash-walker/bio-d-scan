@@ -1,0 +1,17 @@
+# ── Development image ─────────────────────────────────────────────────────────
+# Source code is mounted as a volume — nodemon watches for changes and
+# ts-node compiles on the fly. No build step needed in dev.
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies first (layer is cached as long as package files don't change)
+COPY package*.json ./
+RUN npm ci
+
+# Copy tsconfig so ts-node can find it (src/ is mounted separately)
+COPY tsconfig.json ./
+
+EXPOSE 4000
+
+CMD ["npm", "run", "dev:watch"]

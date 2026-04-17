@@ -1,21 +1,29 @@
 import { create } from "zustand";
-import type { InsectCapture, InsectKind, Farmer } from "@/modules/shared/types";
-import { MOCK_CAPTURES, MOCK_FARMERS, MOCK_TRANSACTIONS, INSECT_KINDS } from "@/lib/mock-data";
-import { farmersApi, capturesApi, creditsApi, type Capture as ApiCapture } from "@/lib/api";
+import type { InsectCapture, InsectKind, Farmer, CreditTransaction } from "@/modules/shared/types";
+import { INSECT_KINDS } from "@/lib/mock-data";
+import {
+  authApi,
+  farmersApi,
+  capturesApi,
+  creditsApi,
+  type Capture as ApiCapture,
+} from "@/lib/api";
 import { getBioScanSocket } from "@/lib/ws";
 
 // ─── Map API response → frontend types ────────────────────────────────────────
 
 function apiCaptureToInsect(c: ApiCapture): InsectCapture {
   const kindMeta = INSECT_KINDS.find((k) => k.kind === c.kind) ?? INSECT_KINDS[0];
+  const raw = (c.label ?? "detection").trim();
+  const title = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : "Detection";
   return {
     id: c.id,
     kind: (c.kind as InsectKind) ?? "beetle",
-    commonName: `${c.label.charAt(0).toUpperCase()}${c.label.slice(1)} #${c.trackingId}`,
+    commonName: `${title} #${c.trackingId}`,
     scientificName: kindMeta?.scientificName ?? "Specimen spp.",
     timestamp: c.timestamp,
-    lat: c.lat ?? 31.55,
-    lng: c.lng ?? 74.34,
+    lat: c.lat ?? 0,
+    lng: c.lng ?? 0,
     aiConfidence: Math.round(c.confidence * 100),
     trajectory: c.trajectory ?? undefined,
     imageUrl: c.imageS3Uri ?? undefined,
@@ -38,7 +46,7 @@ interface FarmerStore {
   selectedKind: InsectKind | null;
   liveScan: LiveScanState;
   carbonCredits: number;
-  transactions: typeof MOCK_TRANSACTIONS;
+  transactions: CreditTransaction[];
   isLoading: boolean;
   error: string | null;
   liveStreamUrl: string | null;
@@ -55,14 +63,14 @@ interface FarmerStore {
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useFarmerStore = create<FarmerStore>((set, get) => ({
-  farmerId: "farmer-001",  // will be replaced by real UUID after API fetch
-  farmerName: MOCK_FARMERS[0].name,
+  farmerId: "",
+  farmerName: "",
   currentFarmer: null,
-  captures: MOCK_CAPTURES,
+  captures: [],
   selectedKind: null,
   liveScan: { isScanning: false, lastCapture: null, recentCaptures: [] },
-  carbonCredits: MOCK_FARMERS[0].carbonCredits,
-  transactions: MOCK_TRANSACTIONS,
+  carbonCredits: 0,
+  transactions: [],
   isLoading: false,
   error: null,
   liveStreamUrl: null,
@@ -139,57 +147,59 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
   fetchFarmerData: async () => {
     set({ isLoading: true, error: null });
     try {
-      const [farmers, captures] = await Promise.all([
-        farmersApi.list(),
-        capturesApi.list({ limit: 100 }),
+      const me = await authApi.me();
+      if (me.role !== "farmer" || !me.farmerId) {
+        set({
+          isLoading: false,
+          error: "No farmer profile is linked to this account.",
+        });
+        return;
+      }
+
+      const [f, captures, balanceRes] = await Promise.all([
+        farmersApi.get(me.farmerId),
+        capturesApi.list({ farmerId: me.farmerId, limit: 200 }),
+        creditsApi.balance(me.farmerId).catch(() => null),
       ]);
 
-      if (farmers.length > 0) {
-        const f = farmers[0];
-        const currentFarmer: Farmer = {
-          id: f.id,
-          name: f.name,
-          farmName: f.farm_name,
-          location: f.location,
-          coordinates: { lat: f.lat, lng: f.lng },
-          fieldAreaHectares: f.field_area_ha,
-          farmingMethod: f.farming_method,
-          waterSource: f.water_source,
-          carbonCredits: f.carbon_credits,
-          totalCaptures: captures.length,
-          joinedAt: f.joined_at,
-          weather: f.weather,
-        };
-        set({
-          farmerId: f.id,
-          farmerName: f.name,
-          carbonCredits: f.carbon_credits,
-          currentFarmer,
-        });
+      const currentFarmer: Farmer = {
+        id: f.id,
+        name: f.name,
+        farmName: f.farm_name,
+        location: f.location,
+        coordinates: { lat: f.lat, lng: f.lng },
+        fieldAreaHectares: f.field_area_ha,
+        farmingMethod: f.farming_method,
+        waterSource: f.water_source,
+        carbonCredits: balanceRes?.balance ?? f.carbon_credits,
+        totalCaptures: captures.length,
+        joinedAt: f.joined_at,
+        weather: f.weather,
+      };
 
-        // Fetch transactions with the real farmer ID
-        const realTxns = await creditsApi.transactions(f.id).catch(() => []);
-        const mappedTxns = realTxns.map((t) => ({
-          id: t.id,
-          farmerId: t.farmerId,
-          amount: t.amount,
-          type: t.type,
-          description: t.description,
-          timestamp: t.createdAt,
-        }));
-        if (mappedTxns.length > 0) {
-          set({ transactions: mappedTxns });
-        }
-      }
+      const realTxns = await creditsApi.transactions(f.id).catch(() => []);
+      const mappedTxns: CreditTransaction[] = realTxns.map((t) => ({
+        id: t.id,
+        farmerId: t.farmerId,
+        amount: t.amount,
+        type: t.type,
+        description: t.description,
+        timestamp: t.createdAt,
+      }));
 
-      if (captures.length > 0) {
-        set({ captures: captures.map(apiCaptureToInsect) });
-      }
-
-      set({ isLoading: false });
-    } catch {
-      // Backend offline — keep mock data, don't show error in UI
-      set({ isLoading: false });
+      set({
+        farmerId: f.id,
+        farmerName: f.name,
+        carbonCredits: balanceRes?.balance ?? f.carbon_credits,
+        currentFarmer,
+        captures: captures.map(apiCaptureToInsect),
+        transactions: mappedTxns,
+        isLoading: false,
+      });
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Could not load your farm data. Check your connection and try again.";
+      set({ isLoading: false, error: msg });
     }
   },
 

@@ -9,19 +9,46 @@ import { ListRow, EmojiTile } from "@/components/ui/list-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   MapPin,
-  Thermometer,
   Droplets,
-  Wind,
   ScanLine,
   Star,
   TrendingUp,
   Clock,
   Zap,
+  Leaf,
+  Waves,
+  AlertCircle,
 } from "lucide-react";
-import { MOCK_FARMERS, INSECT_KINDS } from "@/lib/mock-data";
+import { INSECT_KINDS } from "@/lib/mock-data";
+import type { WaterSource, FarmingMethod } from "@/modules/shared/types";
 import { cn } from "@/lib/utils";
+
+function formatWaterSource(w: WaterSource): string {
+  const labels: Record<WaterSource, string> = {
+    rainFed: "Rain fed",
+    irrigated: "Irrigated",
+    mixed: "Mixed",
+  };
+  return labels[w];
+}
+
+function formatFarmingMethod(m: FarmingMethod): string {
+  const labels: Record<FarmingMethod, string> = {
+    organic: "Organic",
+    transitioning: "Transitioning",
+    commercial: "Commercial",
+  };
+  return labels[m];
+}
+
+function daysActiveSinceJoined(iso: string): number {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return 1;
+  return Math.max(1, Math.ceil((Date.now() - t) / 86400000));
+}
 
 function LiveScanPreview() {
   const { liveScan, startScan, stopScan, simulateCapture, liveStreamUrl } = useFarmerStore();
@@ -140,18 +167,12 @@ function LiveScanPreview() {
 }
 
 export function FarmerDashboard() {
-  const { carbonCredits, captures, farmerName, currentFarmer, fetchFarmerData, initWebSocket } = useFarmerStore();
-  const fallbackFarmer = MOCK_FARMERS[0];
-  const location = currentFarmer?.location ?? fallbackFarmer.location;
-  const weather = currentFarmer?.weather ?? fallbackFarmer.weather;
-  const fieldAreaHectares = currentFarmer?.fieldAreaHectares ?? fallbackFarmer.fieldAreaHectares;
+  const { carbonCredits, captures, farmerName, currentFarmer, isLoading, error } = useFarmerStore();
 
-  useEffect(() => {
-    fetchFarmerData();
-    const cleanup = initWebSocket();
-    return cleanup;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const location = currentFarmer?.location ?? "";
+  const weather = currentFarmer?.weather;
+  const fieldAreaHectares = currentFarmer?.fieldAreaHectares ?? 0;
+  const activeDays = currentFarmer ? daysActiveSinceJoined(currentFarmer.joinedAt) : 0;
 
   const recentCaptures = captures.slice(0, 4);
   const capturesByKind = INSECT_KINDS.map((k) => ({
@@ -159,15 +180,45 @@ export function FarmerDashboard() {
     count: captures.filter((c) => c.kind === k.kind).length,
   }));
 
+  const firstName = farmerName.trim().split(/\s+/)[0] || "Farmer";
+
+  if (isLoading && !currentFarmer) {
+    return (
+      <div className="p-4 sm:p-6 space-y-6 animate-pulse">
+        <div className="h-10 bg-[var(--border-subtle)] rounded-lg max-w-md" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 bg-[var(--border-subtle)]/80 rounded-2xl" />
+          ))}
+        </div>
+        <div className="h-64 bg-[var(--border-subtle)]/60 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (error && !currentFarmer) {
+    return (
+      <div className="p-4 sm:p-6">
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-700 max-w-lg">
+          <AlertCircle size={20} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Could not load dashboard</p>
+            <p className="text-red-600/90 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <PageHeader
         eyebrow="Field Guide"
-        title={`Good morning, ${farmerName.split(" ")[0]}`}
+        title={`Good morning, ${firstName}`}
         subtitle={
           <span className="flex items-center gap-1.5">
             <MapPin size={13} />
-            {location}
+            {location || "—"}
           </span>
         }
         actions={
@@ -186,16 +237,28 @@ export function FarmerDashboard() {
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Total Captures" value={captures.length} icon={ScanLine} color="text-[var(--green-deep)]" size="sm" />
-        <StatCard label="Field Area" value={`${fieldAreaHectares} ha`} icon={MapPin} color="text-[var(--amber-mid)]" size="sm" />
+        <StatCard
+          label="Field Area"
+          value={fieldAreaHectares > 0 ? `${fieldAreaHectares} ha` : "—"}
+          icon={MapPin}
+          color="text-[var(--amber-mid)]"
+          size="sm"
+        />
         <StatCard label="Credits Earned" value={carbonCredits} icon={Star} color="text-[var(--amber-deep)]" size="sm" />
-        <StatCard label="Active Days" value="84" icon={TrendingUp} color="text-blue-600" size="sm" />
+        <StatCard
+          label="Days on platform"
+          value={activeDays || "—"}
+          icon={TrendingUp}
+          color="text-blue-600"
+          size="sm"
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <LiveScanPreview />
 
         <div className="lg:col-span-2 space-y-4">
-          {/* Weather card */}
+          {/* Weather & farm profile (from API) */}
           <Card variant="pale">
             <CardContent>
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -204,25 +267,42 @@ export function FarmerDashboard() {
                     Current Conditions
                   </p>
                   <p className="font-display font-bold text-3xl text-[var(--green-deep)]">
-                    {weather.temp}°C
+                    {weather ? `${weather.temp}°C` : "—"}
                   </p>
-                  <p className="text-sm text-[var(--text-muted)]">{weather.condition}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{weather?.condition ?? "No weather data"}</p>
                 </div>
-                <div className="flex gap-5">
-                  {[
-                    { icon: Droplets, value: `${weather.humidity}%`, label: "Humidity", color: "text-blue-500" },
-                    { icon: Wind, value: "12 km/h", label: "Wind", color: "text-[var(--green-light)]" },
-                    { icon: Thermometer, value: `${weather.temp + 3}°C`, label: "Feels like", color: "text-[var(--amber-mid)]" },
-                  ].map(({ icon: Icon, value, label, color }) => (
-                    <div key={label} className="flex items-center gap-2 text-sm">
-                      <Icon size={16} className={color} />
-                      <div>
-                        <p className="font-medium text-[var(--text-dark)]">{value}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{label}</p>
+                {currentFarmer && weather && (
+                  <div className="flex flex-wrap gap-5">
+                    {[
+                      {
+                        icon: Droplets,
+                        value: `${weather.humidity}%`,
+                        label: "Humidity",
+                        color: "text-blue-500",
+                      },
+                      {
+                        icon: Waves,
+                        value: formatWaterSource(currentFarmer.waterSource),
+                        label: "Water",
+                        color: "text-[var(--green-light)]",
+                      },
+                      {
+                        icon: Leaf,
+                        value: formatFarmingMethod(currentFarmer.farmingMethod),
+                        label: "Method",
+                        color: "text-[var(--amber-mid)]",
+                      },
+                    ].map(({ icon: Icon, value, label, color }) => (
+                      <div key={label} className="flex items-center gap-2 text-sm">
+                        <Icon size={16} className={color} />
+                        <div>
+                          <p className="font-medium text-[var(--text-dark)]">{value}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{label}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -259,28 +339,36 @@ export function FarmerDashboard() {
           }
         />
         <CardContent>
-          <div className="space-y-1">
-            {recentCaptures.map((capture) => {
-              const kindMeta = INSECT_KINDS.find((k) => k.kind === capture.kind);
-              return (
-                <ListRow
-                  key={capture.id}
-                  leading={<EmojiTile emoji={kindMeta?.emoji ?? "🦋"} />}
-                  title={capture.commonName}
-                  subtitle={`${capture.scientificName} · ${capture.trajectory ?? ""}`}
-                  trailing={
-                    <div className="text-right">
-                      <Badge variant="green">{capture.aiConfidence.toFixed(0)}%</Badge>
-                      <p className="text-[10px] text-[var(--text-light)] mt-0.5 flex items-center gap-1 justify-end">
-                        <Clock size={10} />
-                        {new Date(capture.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                      </p>
-                    </div>
-                  }
-                />
-              );
-            })}
-          </div>
+          {recentCaptures.length === 0 ? (
+            <EmptyState
+              emoji="📷"
+              title="No captures yet"
+              description="Scans from your field will appear here. Start a live scan or wait for detections from the model."
+            />
+          ) : (
+            <div className="space-y-1">
+              {recentCaptures.map((capture) => {
+                const kindMeta = INSECT_KINDS.find((k) => k.kind === capture.kind);
+                return (
+                  <ListRow
+                    key={capture.id}
+                    leading={<EmojiTile emoji={kindMeta?.emoji ?? "🦋"} />}
+                    title={capture.commonName}
+                    subtitle={`${capture.scientificName} · ${capture.trajectory ?? ""}`}
+                    trailing={
+                      <div className="text-right">
+                        <Badge variant="green">{capture.aiConfidence.toFixed(0)}%</Badge>
+                        <p className="text-[10px] text-[var(--text-light)] mt-0.5 flex items-center gap-1 justify-end">
+                          <Clock size={10} />
+                          {new Date(capture.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

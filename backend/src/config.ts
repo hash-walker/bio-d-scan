@@ -36,4 +36,6 @@ export const config = {
   },
 
   liveStreamUrl: optional("LIVE_STREAM_URL", ""),
+  jwtSecret: optional("JWT_SECRET", "bioscan-dev-secret-change-in-production"),
+  jwtExpiresIn: optional("JWT_EXPIRES_IN", "7d"),
 } as const;
