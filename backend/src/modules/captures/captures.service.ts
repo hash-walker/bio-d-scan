@@ -1,6 +1,7 @@
 import { CaptureModel } from "../../db/mongo";
 import { pool } from "../../db/postgres";
 import { createLogger } from "../../lib/logger";
+import { broadcastCapture, broadcastCreditUpdate } from "../../realtime/ws-server";
 import { labelToKind, type MqttCaptureInput, type Capture } from "./captures.schema";
 
 const log = createLogger("captures");
@@ -48,12 +49,18 @@ export const capturesService = {
       { upsert: true, new: true }
     ).lean();
 
+    const capture = docToCapture(doc as Record<string, unknown>);
+
     // Award carbon credits to the farmer when a new insect is captured
+    let newBalance: number | null = null;
     if (payload.farmer_id) {
       try {
         const creditsEarned = Math.ceil(payload.confidence * 10);
-        await pool.query(
-          "UPDATE farmers SET carbon_credits = carbon_credits + $1 WHERE id = $2",
+        const { rows } = await pool.query<{ carbon_credits: number }>(
+          `UPDATE farmers
+             SET carbon_credits = carbon_credits + $1
+           WHERE id = $2
+           RETURNING carbon_credits`,
           [creditsEarned, payload.farmer_id]
         );
         await pool.query(
@@ -65,13 +72,25 @@ export const capturesService = {
             `Capture: ${payload.label} (confidence ${(payload.confidence * 100).toFixed(0)}%)`,
           ]
         );
+        newBalance = rows[0]?.carbon_credits ?? null;
         log.info(`+${creditsEarned} credits to farmer ${payload.farmer_id}`);
       } catch (err) {
         log.warn("Could not award credits (Postgres error)", err);
       }
     }
 
-    return docToCapture(doc as Record<string, unknown>);
+    // Push real-time events to any connected browsers for this farm.
+    // Used by BOTH the MQTT bridge and the HTTP POST /api/captures endpoint.
+    try {
+      broadcastCapture(capture);
+      if (capture.farmerId && newBalance !== null) {
+        broadcastCreditUpdate(capture.farmerId, newBalance);
+      }
+    } catch (err) {
+      log.warn("Failed to broadcast capture via WebSocket", err);
+    }
+
+    return capture;
   },
 
   async getAll(filters: { farmerId?: string; kind?: string; limit?: number }): Promise<Capture[]> {

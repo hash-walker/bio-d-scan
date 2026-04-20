@@ -20,7 +20,6 @@ import { config } from "../config";
 import { createLogger } from "../lib/logger";
 import { MqttCaptureSchema } from "../modules/captures/captures.schema";
 import { capturesService } from "../modules/captures/captures.service";
-import { broadcastCapture, broadcastCreditUpdate } from "./ws-server";
 
 const log = createLogger("mqtt");
 
@@ -85,24 +84,9 @@ export function startMqttBridge(): void {
         return;
       }
 
-      // Save to MongoDB + award Postgres credits
+      // Save to MongoDB + award Postgres credits + broadcast to WS clients
+      // (all handled inside capturesService.ingest, so both MQTT and HTTP paths behave identically)
       const capture = await capturesService.ingest(parsed.data);
-
-      // Push to all connected frontend WebSocket clients
-      broadcastCapture(capture);
-
-      // Also broadcast the updated credit balance
-      if (capture.farmerId) {
-        const { rows } = await import("../db/postgres").then((m) =>
-          m.pool.query<{ carbon_credits: number }>(
-            "SELECT carbon_credits FROM farmers WHERE id = $1",
-            [capture.farmerId]
-          )
-        );
-        if (rows[0]) {
-          broadcastCreditUpdate(capture.farmerId, rows[0].carbon_credits);
-        }
-      }
 
       log.info(`Ingested capture: ${capture.label} (${(capture.confidence * 100).toFixed(0)}%)`);
     } catch (err) {

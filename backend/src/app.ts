@@ -13,7 +13,18 @@ import { getConnectedCount } from "./realtime/ws-server";
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors({ origin: config.frontendUrl, credentials: true }));
+// Allow comma-separated origins (e.g. http://localhost:3000,http://127.0.0.1:3000)
+// so registration works whether the app is opened via localhost or 127.0.0.1.
+const corsOrigins = config.frontendUrl
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin: corsOrigins.length <= 1 ? corsOrigins[0] ?? true : corsOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(morgan("dev"));
 

@@ -12,15 +12,21 @@ type EventType =
   | "CREDIT_UPDATE"
   | "SCAN_STATUS"
   | "STREAM_URL"
+  | "PI_STATUS"
   | "PONG"
   | "open"
   | "close"
-  | "error";
+  | "error"
+  | "SCAN_START"
+  | "SCAN_STOP";
 
 type Listener = (data: unknown) => void;
 
 const WS_URL =
   process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:4000/ws";
+
+export const STATIC_STREAM_URL =
+  process.env.NEXT_PUBLIC_STREAM_URL ?? "";
 
 class BioScanSocket {
   private ws: WebSocket | null = null;
@@ -99,6 +105,14 @@ class BioScanSocket {
 
   leaveFarm(farmerId: string): void {
     this.send({ type: "LEAVE_FARM", data: { farmerId } });
+  }
+
+  startScan(farmerId: string): void {
+    this.send({ type: "SCAN_START", data: { farmerId } });
+  }
+
+  stopScan(farmerId: string): void {
+    this.send({ type: "SCAN_STOP", data: { farmerId } });
   }
 
   ping(): void {

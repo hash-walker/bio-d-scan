@@ -1,9 +1,0 @@
-tracking_id: 9
-label: person
-confidence: 0.9625
-first_seen_at: 2026-04-15T16:29:24+05:00
-best_seen_at: 2026-04-15T16:30:13+05:00
-image_path: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260415_162905/images/tracking_9.jpg
-bbox_xyxy: [-4, 236, 1732, 834]
-frame_size: 1920x1080
-backup_run_id: 20260415_162905

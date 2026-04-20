@@ -8,7 +8,7 @@ import {
   creditsApi,
   type Capture as ApiCapture,
 } from "@/lib/api";
-import { getBioScanSocket } from "@/lib/ws";
+import { getBioScanSocket, STATIC_STREAM_URL } from "@/lib/ws";
 
 // ─── Map API response → frontend types ────────────────────────────────────────
 
@@ -50,6 +50,10 @@ interface FarmerStore {
   isLoading: boolean;
   error: string | null;
   liveStreamUrl: string | null;
+  /** True when the browser's WebSocket to the backend is open */
+  wsConnected: boolean;
+  /** True when a Raspberry Pi has registered for this farmer's farm */
+  piConnected: boolean;
 
   setSelectedKind: (kind: InsectKind | null) => void;
   startScan: () => void;
@@ -73,40 +77,57 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
   transactions: [],
   isLoading: false,
   error: null,
-  liveStreamUrl: null,
+  liveStreamUrl: STATIC_STREAM_URL || null,
+  wsConnected: false,
+  piConnected: false,
 
   setSelectedKind: (kind) => set({ selectedKind: kind }),
 
-  startScan: () =>
-    set((s) => ({ liveScan: { ...s.liveScan, isScanning: true } })),
+  startScan: () => {
+    const { farmerId } = get();
+    try {
+      const socket = getBioScanSocket();
+      socket.startScan(farmerId);
+    } catch {
+      // WS not available — still update local state for simulation
+    }
+    set((s) => ({ liveScan: { ...s.liveScan, isScanning: true } }));
+  },
 
-  stopScan: () =>
-    set((s) => ({ liveScan: { ...s.liveScan, isScanning: false } })),
+  stopScan: () => {
+    const { farmerId } = get();
+    try {
+      const socket = getBioScanSocket();
+      socket.stopScan(farmerId);
+    } catch {
+      // WS not available
+    }
+    set((s) => ({ liveScan: { ...s.liveScan, isScanning: false } }));
+  },
 
-  // Used as fallback when backend / AI model is offline
+  // Visual-only simulation for demo/offline mode — does NOT touch real captures
+  // or credit balance so real data stays clean.
   simulateCapture: () => {
     const kinds: InsectKind[] = ["butterfly", "beetle", "bee", "firefly"];
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
     const kindMeta = INSECT_KINDS.find((k) => k.kind === kind) ?? INSECT_KINDS[0];
-    const newCapture: InsectCapture = {
-      id: `cap-live-${Date.now()}`,
+    const fakeCapture: InsectCapture = {
+      id: `sim-${Date.now()}`,
       kind,
-      commonName: `Live ${kind} #${Math.floor(Math.random() * 999)}`,
+      commonName: `${kind.charAt(0).toUpperCase() + kind.slice(1)} #${Math.floor(Math.random() * 999)}`,
       scientificName: kindMeta?.scientificName ?? "Specimen spp.",
       timestamp: new Date().toISOString(),
-      lat: 31.55 + Math.random() * 0.02,
-      lng: 74.34 + Math.random() * 0.02,
+      lat: 0,
+      lng: 0,
       aiConfidence: 80 + Math.random() * 18,
       trajectory: `${["N", "NE", "E", "SE", "S"][Math.floor(Math.random() * 5)]} @ ${(Math.random() * 15 + 1).toFixed(1)} km/h`,
     };
-    const creditsEarned = Math.floor(Math.random() * 20) + 5;
+    // Only update liveScan — never real captures or credits
     set((s) => ({
-      captures: [newCapture, ...s.captures],
-      carbonCredits: s.carbonCredits + creditsEarned,
       liveScan: {
         ...s.liveScan,
-        lastCapture: newCapture,
-        recentCaptures: [newCapture, ...s.liveScan.recentCaptures].slice(0, 5),
+        lastCapture: fakeCapture,
+        recentCaptures: [fakeCapture, ...s.liveScan.recentCaptures].slice(0, 5),
       },
     }));
   },
@@ -206,12 +227,26 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
   /** Connect to backend WebSocket. Returns a cleanup function. */
   initWebSocket: () => {
     const socket = getBioScanSocket();
-    socket.connect();
-
     const farmerId = get().farmerId;
-    socket.joinFarm(farmerId);
 
-    // Listen for real-time captures from the AI model
+    // Track backend WS connection health. Also (re-)join our farm every time
+    // the socket opens — crucial because `send()` silently drops messages if
+    // the socket isn't OPEN yet, and because we auto-reconnect on drops.
+    const offOpen = socket.on("open", () => {
+      set({ wsConnected: true });
+      socket.joinFarm(farmerId);
+    });
+    const offClose = socket.on("close", () => set({ wsConnected: false, piConnected: false }));
+
+    socket.connect();
+    // If the singleton was already open from a previous mount, fire JOIN_FARM now
+    // (the "open" event won't re-emit for an already-open socket).
+    if (socket.isConnected) {
+      set({ wsConnected: true });
+      socket.joinFarm(farmerId);
+    }
+
+    // Real-time captures — only this farm's events arrive (server filters by farmerId)
     const offCapture = socket.on("CAPTURE_NEW", (data) => {
       const capture = apiCaptureToInsect(data as ApiCapture);
       set((s) => ({
@@ -224,23 +259,47 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
       }));
     });
 
-    // Live credit balance updates
+    // Credit balance update — scoped to this farmer
     const offCredit = socket.on("CREDIT_UPDATE", (data) => {
       const { newBalance } = data as { farmerId: string; newBalance: number };
       set({ carbonCredits: newBalance });
     });
 
-    // Live stream URL from the Pi
+    // Pi registered → stream URL pushed here
     const offStream = socket.on("STREAM_URL", (data) => {
-      const { url } = data as { url: string };
-      set({ liveStreamUrl: url });
+      const { url, farmerId: streamFarmerId } = data as { url: string; farmerId: string | null };
+      if (!streamFarmerId || streamFarmerId === get().farmerId) {
+        set({ liveStreamUrl: url || null });
+      }
+    });
+
+    // Pi online/offline status — decoupled from stream URL
+    const offPiStatus = socket.on("PI_STATUS", (data) => {
+      const { online, farmerId: piFarmerId } = data as { online: boolean; farmerId: string };
+      if (!piFarmerId || piFarmerId === get().farmerId) {
+        set({ piConnected: online });
+        if (!online) {
+          set({ liveStreamUrl: null });
+        }
+      }
+    });
+
+    // Pi scan state relayed back from the backend
+    const offScanStatus = socket.on("SCAN_STATUS", (data) => {
+      const { isScanning } = data as { isScanning: boolean; farmerId: string };
+      set((s) => ({ liveScan: { ...s.liveScan, isScanning } }));
     });
 
     return () => {
+      offOpen();
+      offClose();
       offCapture();
       offCredit();
       offStream();
+      offPiStatus();
+      offScanStatus();
       socket.leaveFarm(farmerId);
+      set({ wsConnected: false, piConnected: false });
     };
   },
 }));

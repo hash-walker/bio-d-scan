@@ -191,13 +191,6 @@ export function AppShell({
   // Optimistic active href: set instantly on click, cleared when pathname settles.
   const [activeHref, setActiveHref] = useState<string | null>(null);
 
-  // Once the real pathname matches the clicked href (or changes for any reason),
-  // clear the optimistic value so pathname-based matching takes over again.
-  useEffect(() => {
-    setActiveHref(null);
-    setSidebarOpen(false);
-  }, [pathname]);
-
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
     document.body.style.overflow = sidebarOpen ? "hidden" : "";
@@ -207,8 +200,10 @@ export function AppShell({
   }, [sidebarOpen]);
 
   const handleNavClick = useCallback((href: string) => {
-    setActiveHref(href);   // instant highlight
+    setActiveHref(href); // instant highlight
     setSidebarOpen(false); // close mobile drawer
+    // Let pathname-based matching take over after navigation settles.
+    setTimeout(() => setActiveHref(null), 300);
   }, []);
 
   const sharedSidebarProps: SidebarContentProps = {

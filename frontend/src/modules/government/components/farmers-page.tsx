@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import type { Farmer } from "@/modules/shared/types";
 import { cn } from "@/lib/utils";
@@ -18,7 +17,6 @@ import {
   Thermometer,
   Droplets,
   Star,
-  Bug,
   ChevronRight,
   X,
   Zap,
@@ -256,11 +254,7 @@ export function FarmersPage() {
   const selectedFarmer = farmers.find((f) => f.id === selectedId) ?? null;
 
   useEffect(() => {
-    if (!selectedId) {
-      setFarmerCaptures([]);
-      return;
-    }
-    setLoadingDetails(true);
+    if (!selectedId) return;
     govApi.farmerDetails(selectedId)
       .then((data) => setFarmerCaptures(data.captures.map(apiCaptureToInsect)))
       .catch(() => setFarmerCaptures([]))
@@ -283,9 +277,11 @@ export function FarmersPage() {
                 key={farmer.id}
                 farmer={farmer}
                 selected={selectedId === farmer.id}
-                onSelect={() =>
-                  setSelectedId(selectedId === farmer.id ? null : farmer.id)
-                }
+                onSelect={() => {
+                  const nextId = selectedId === farmer.id ? null : farmer.id;
+                  setSelectedId(nextId);
+                  if (nextId) setLoadingDetails(true);
+                }}
               />
             ))}
           </div>

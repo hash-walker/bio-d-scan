@@ -1,0 +1,78 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Bio D. Scan — Production Compose
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# Set real secrets via environment variables or a .env file at project root:
+#   JWT_SECRET, DATABASE_URL, MONGODB_URI, AWS_*, LIVE_STREAM_URL
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bioscan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-bioscan}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bioscan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7-jammy
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bioscan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bioscan}
+      MONGODB_URI: mongodb://mongo:27017/bioscan
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_IOT_ENDPOINT: ${AWS_IOT_ENDPOINT:-}
+      AWS_IOT_TOPIC: ${AWS_IOT_TOPIC:-detections}
+      LIVE_STREAM_URL: ${LIVE_STREAM_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL required}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?NEXT_PUBLIC_WS_URL required}
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  mongo_data:

@@ -21,6 +21,9 @@ import {
   Leaf,
   Waves,
   AlertCircle,
+  Wifi,
+  WifiOff,
+  MonitorOff,
 } from "lucide-react";
 import { INSECT_KINDS } from "@/lib/mock-data";
 import type { WaterSource, FarmingMethod } from "@/modules/shared/types";
@@ -51,28 +54,30 @@ function daysActiveSinceJoined(iso: string): number {
 }
 
 function LiveScanPreview() {
-  const { liveScan, startScan, stopScan, simulateCapture, liveStreamUrl } = useFarmerStore();
-  const [pulse, setPulse] = useState(false);
-  const [wsConnected] = useState(false);
+  const {
+    liveScan,
+    startScan,
+    stopScan,
+    simulateCapture,
+    liveStreamUrl,
+    wsConnected,
+    piConnected,
+  } = useFarmerStore();
 
-  // Fallback simulation when backend is offline
+  const [streamErrorForUrl, setStreamErrorForUrl] = useState<string | null>(null);
+
+  // Simulation runs ONLY when scanning and no real Pi is connected.
+  // This ensures it never fires and pollutes data when the Pi is live.
   useEffect(() => {
-    if (!liveScan.isScanning || wsConnected) return;
+    if (!liveScan.isScanning || piConnected) return;
     const interval = setInterval(() => {
       simulateCapture();
-      setPulse(true);
-      setTimeout(() => setPulse(false), 600);
     }, 4000);
     return () => clearInterval(interval);
-  }, [liveScan.isScanning, simulateCapture, wsConnected]);
+  }, [liveScan.isScanning, piConnected, simulateCapture]);
 
-  // Visual pulse on every real capture event
-  useEffect(() => {
-    if (!liveScan.lastCapture) return;
-    setPulse(true);
-    const t = setTimeout(() => setPulse(false), 600);
-    return () => clearTimeout(t);
-  }, [liveScan.lastCapture]);
+  const showStream =
+    Boolean(liveStreamUrl) && streamErrorForUrl !== liveStreamUrl;
 
   return (
     <Card className="relative overflow-hidden">
@@ -80,55 +85,97 @@ function LiveScanPreview() {
         title="Live Scan Preview"
         icon={<ScanLine size={16} className="text-[var(--green-deep)]" />}
         action={
-          liveScan.isScanning ? (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--green-light)]">
-              <span className="w-2 h-2 rounded-full bg-[var(--green-light)] animate-pulse" />
-              Scanning
-            </span>
-          ) : (
-            <span className="text-xs text-[var(--text-muted)]">Idle</span>
-          )
+          <div className="flex items-center gap-2">
+            {/* Pi / WS connection status */}
+            {piConnected ? (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-[var(--green-light)]">
+                <Wifi size={11} />
+                Pi online
+              </span>
+            ) : wsConnected ? (
+              <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                <WifiOff size={11} />
+                Pi offline
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-[var(--text-light)]">
+                <WifiOff size={11} />
+                Connecting…
+              </span>
+            )}
+
+            {/* Scan state */}
+            {liveScan.isScanning ? (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--green-light)]">
+                <span className="w-2 h-2 rounded-full bg-[var(--green-light)] animate-pulse" />
+                {piConnected ? "Scanning" : "Simulating"}
+              </span>
+            ) : (
+              <span className="text-xs text-[var(--text-muted)]">Idle</span>
+            )}
+          </div>
         }
       />
 
       <CardContent>
-        {/* Camera preview — shows Pi MJPEG stream when available */}
+        {/* Camera viewport */}
         <div
           className={cn(
             "relative rounded-xl overflow-hidden bg-[var(--green-deep)] aspect-video flex items-center justify-center mb-4 transition-all duration-300",
-            pulse && "ring-2 ring-[var(--green-light)]"
+            liveScan.lastCapture && "ring-2 ring-[var(--green-light)]"
           )}
         >
-          {liveStreamUrl ? (
+          {showStream ? (
+            // MJPEG stream from the Pi — the browser polls this URL continuously.
+            // onerror fires if the Pi stream drops or becomes unreachable.
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={liveStreamUrl}
-              alt="Live camera feed"
+              src={liveStreamUrl ?? undefined}
+              alt="Live Pi camera feed"
               className="absolute inset-0 w-full h-full object-cover"
+              onError={() => {
+                if (liveStreamUrl) setStreamErrorForUrl(liveStreamUrl);
+              }}
             />
           ) : (
             <>
+              {/* Decorative overlay grid */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute inset-4 border-2 border-white/30 rounded-lg" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border-2 border-white/40 rounded-full" />
               </div>
-              {liveScan.isScanning ? (
+
+              {!showStream && liveStreamUrl ? (
+                <div className="text-center px-4">
+                  <MonitorOff size={28} className="text-white/40 mx-auto mb-2" />
+                  <p className="text-white/50 text-xs">Stream unavailable</p>
+                  <p className="text-white/30 text-[10px] mt-1">
+                    Check that the Pi is reachable on your network
+                  </p>
+                </div>
+              ) : liveScan.isScanning ? (
                 <div className="text-center">
                   <ScanLine size={32} className="text-white/60 mx-auto mb-2 animate-pulse" />
-                  <p className="text-white/60 text-xs">AI model processing feed…</p>
+                  <p className="text-white/60 text-xs">
+                    {piConnected ? "Waiting for Pi stream…" : "Simulating detections…"}
+                  </p>
                 </div>
               ) : (
                 <div className="text-center">
                   <ScanLine size={32} className="text-white/30 mx-auto mb-2" />
-                  <p className="text-white/40 text-xs">Camera inactive</p>
+                  <p className="text-white/40 text-xs">
+                    {piConnected ? "Pi ready — press Start Scan" : "Camera inactive"}
+                  </p>
                 </div>
               )}
             </>
           )}
-          {pulse && liveScan.lastCapture && (
-            <div className="absolute bottom-3 left-3 right-3 bg-[var(--green-deep)]/90 rounded-lg px-3 py-2 backdrop-blur">
+
+          {/* Capture toast overlay */}
+          {liveScan.lastCapture && (
+            <div className="absolute bottom-3 left-3 right-3 bg-[var(--green-deep)]/90 rounded-lg px-3 py-2 backdrop-blur-sm">
               <p className="text-white text-xs font-medium">
-                ✓ Captured: {liveScan.lastCapture.commonName}
+                ✓ {piConnected ? "Captured" : "Simulated"}: {liveScan.lastCapture.commonName}
               </p>
               <p className="text-white/60 text-[10px]">
                 AI Confidence: {liveScan.lastCapture.aiConfidence.toFixed(1)}%
@@ -137,29 +184,41 @@ function LiveScanPreview() {
           )}
         </div>
 
+        {/* Last capture info strip */}
         {liveScan.lastCapture && (
           <div className="flex items-start gap-3 p-3 bg-[var(--green-pale)]/30 rounded-xl mb-4">
             <Zap size={15} className="text-[var(--green-deep)] mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-[var(--text-dark)]">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[var(--text-dark)] truncate">
                 Last: {liveScan.lastCapture.commonName}
               </p>
               <p className="text-xs text-[var(--text-muted)]">
-                {liveScan.lastCapture.trajectory} ·{" "}
+                {liveScan.lastCapture.trajectory
+                  ? `${liveScan.lastCapture.trajectory} · `
+                  : ""}
                 {new Date(liveScan.lastCapture.timestamp).toLocaleTimeString()}
               </p>
             </div>
           </div>
         )}
 
+        {/* Scan control button */}
         {liveScan.isScanning ? (
           <Button onClick={stopScan} variant="outline" size="sm" className="w-full">
             Stop Scan
           </Button>
         ) : (
           <Button onClick={startScan} size="sm" className="w-full">
-            <ScanLine size={14} /> Start Scan
+            <ScanLine size={14} />
+            {piConnected ? "Start Scan" : "Start Scan (demo)"}
           </Button>
+        )}
+
+        {/* Offline hint — only shown when Pi not connected */}
+        {!piConnected && (
+          <p className="text-[10px] text-center text-[var(--text-light)] mt-2">
+            No Pi detected — detections are simulated and not saved
+          </p>
         )}
       </CardContent>
     </Card>

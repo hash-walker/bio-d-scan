@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/modules/auth/store";
 import { Scan, Leaf, Building2, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function SignInPage() {
+function SignInPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const role = (params.get("role") ?? "farmer") as "farmer" | "government";
@@ -201,6 +201,14 @@ export default function SignInPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[var(--bg-cream)]" />}>
+      <SignInPageContent />
+    </Suspense>
   );
 }
 

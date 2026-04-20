@@ -15,7 +15,7 @@ COPY . .
 
 # NEXT_PUBLIC_ vars must be available at build time (baked into static bundles)
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api
-ARG NEXT_PUBLIC_WS_URL=ws://localhost:4000
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:4000/ws
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_TELEMETRY_DISABLED=1
