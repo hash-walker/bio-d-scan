@@ -7,18 +7,20 @@ import {
   capturesApi,
   creditsApi,
   type Capture as ApiCapture,
+  type BackupCapture as ApiBackupCapture,
 } from "@/lib/api";
 import { getBioScanSocket, STATIC_STREAM_URL } from "@/lib/ws";
 
 // ─── Map API response → frontend types ────────────────────────────────────────
 
 function apiCaptureToInsect(c: ApiCapture): InsectCapture {
-  const kindMeta = INSECT_KINDS.find((k) => k.kind === c.kind) ?? INSECT_KINDS[0];
+  const normalizedKind = c.kind === "firefly" ? "ladybug" : c.kind;
+  const kindMeta = INSECT_KINDS.find((k) => k.kind === normalizedKind) ?? INSECT_KINDS[0];
   const raw = (c.label ?? "detection").trim();
   const title = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : "Detection";
   return {
     id: c.id,
-    kind: (c.kind as InsectKind) ?? "beetle",
+    kind: (normalizedKind as InsectKind) ?? "beetle",
     commonName: `${title} #${c.trackingId}`,
     scientificName: kindMeta?.scientificName ?? "Specimen spp.",
     timestamp: c.timestamp,
@@ -26,7 +28,46 @@ function apiCaptureToInsect(c: ApiCapture): InsectCapture {
     lng: c.lng ?? 0,
     aiConfidence: Math.round(c.confidence * 100),
     trajectory: c.trajectory ?? undefined,
-    imageUrl: c.imageS3Uri ?? undefined,
+    imageUrl: c.imageUrl ?? c.imageS3Uri ?? undefined,
+    source: "live",
+    bboxXyxy: c.bboxXyxy.length === 4 ? c.bboxXyxy : undefined,
+  };
+}
+
+function hasUsableImage(capture: InsectCapture): boolean {
+  return Boolean(capture.imageUrl && capture.imageUrl.trim());
+}
+
+function backupCaptureToInsect(
+  capture: ApiBackupCapture,
+  fallbackLat: number,
+  fallbackLng: number
+): InsectCapture {
+  const normalizedKind = capture.kind === "firefly" ? "ladybug" : capture.kind;
+  const kindMeta = INSECT_KINDS.find((k) => k.kind === normalizedKind) ?? INSECT_KINDS[0];
+  const raw = (capture.label ?? "detection").trim();
+  const title = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : "Detection";
+  const bbox = capture.bboxXyxy.length === 4 ? `[${capture.bboxXyxy.join(", ")}]` : "n/a";
+  const frame = capture.frameSize ? `${capture.frameSize[0]}x${capture.frameSize[1]}` : "unknown";
+
+  return {
+    id: capture.id,
+    kind: (normalizedKind as InsectKind) ?? "beetle",
+    commonName: `${title} #${capture.trackingId}`,
+    scientificName: kindMeta?.scientificName ?? "Specimen spp.",
+    timestamp: capture.timestamp,
+    lat: fallbackLat,
+    lng: fallbackLng,
+    aiConfidence: Math.round(capture.confidence * 100),
+    imageUrl: capture.imageUrl ?? undefined,
+    source: "backup",
+    backupRunId: capture.runId,
+    firstSeenAt: capture.firstSeenAt,
+    bestSeenAt: capture.bestSeenAt,
+    bboxXyxy: capture.bboxXyxy.length === 4 ? capture.bboxXyxy : undefined,
+    frameSize: capture.frameSize ?? undefined,
+    rawData: capture.raw,
+    notes: `Backup run ${capture.runId}. First seen ${new Date(capture.firstSeenAt).toLocaleString()}. Bounding box ${bbox}. Frame ${frame}.`,
   };
 }
 
@@ -50,6 +91,8 @@ interface FarmerStore {
   isLoading: boolean;
   error: string | null;
   liveStreamUrl: string | null;
+  /** Base64-encoded JPEG frame relayed from Pi through the backend WS */
+  videoFrame: string | null;
   /** True when the browser's WebSocket to the backend is open */
   wsConnected: boolean;
   /** True when a Raspberry Pi has registered for this farmer's farm */
@@ -78,6 +121,7 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
   isLoading: false,
   error: null,
   liveStreamUrl: STATIC_STREAM_URL || null,
+  videoFrame: null,
   wsConnected: false,
   piConnected: false,
 
@@ -108,7 +152,7 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
   // Visual-only simulation for demo/offline mode — does NOT touch real captures
   // or credit balance so real data stays clean.
   simulateCapture: () => {
-    const kinds: InsectKind[] = ["butterfly", "beetle", "bee", "firefly"];
+    const kinds: InsectKind[] = ["butterfly", "beetle", "bee", "ladybug"];
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
     const kindMeta = INSECT_KINDS.find((k) => k.kind === kind) ?? INSECT_KINDS[0];
     const fakeCapture: InsectCapture = {
@@ -179,9 +223,28 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
 
       const [f, captures, balanceRes] = await Promise.all([
         farmersApi.get(me.farmerId),
-        capturesApi.list({ farmerId: me.farmerId, limit: 200 }),
+        capturesApi.list({ farmerId: me.farmerId, limit: 200 }).catch(() => []),
         creditsApi.balance(me.farmerId).catch(() => null),
       ]);
+
+      const backupCapturesResponse = await capturesApi
+        .backupCaptures({ limit: 300 })
+        .catch(() => ({ captures: [], nextOffset: null, total: 0 }));
+
+      const mergedCaptures = [
+        ...captures.map(apiCaptureToInsect),
+        ...backupCapturesResponse.captures.map((capture) =>
+          backupCaptureToInsect(capture, f.lat, f.lng)
+        ),
+      ]
+        .filter(hasUsableImage)
+        .filter(
+          (capture, index, all) =>
+            all.findIndex((item) => item.id === capture.id) === index
+        )
+        .sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
 
       const currentFarmer: Farmer = {
         id: f.id,
@@ -193,7 +256,7 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
         farmingMethod: f.farming_method,
         waterSource: f.water_source,
         carbonCredits: balanceRes?.balance ?? f.carbon_credits,
-        totalCaptures: captures.length,
+        totalCaptures: mergedCaptures.length,
         joinedAt: f.joined_at,
         weather: f.weather,
       };
@@ -213,7 +276,7 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
         farmerName: f.name,
         carbonCredits: balanceRes?.balance ?? f.carbon_credits,
         currentFarmer,
-        captures: captures.map(apiCaptureToInsect),
+        captures: mergedCaptures,
         transactions: mappedTxns,
         isLoading: false,
       });
@@ -249,6 +312,7 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
     // Real-time captures — only this farm's events arrive (server filters by farmerId)
     const offCapture = socket.on("CAPTURE_NEW", (data) => {
       const capture = apiCaptureToInsect(data as ApiCapture);
+      if (!hasUsableImage(capture)) return;
       set((s) => ({
         captures: [capture, ...s.captures],
         liveScan: {
@@ -265,11 +329,19 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
       set({ carbonCredits: newBalance });
     });
 
-    // Pi registered → stream URL pushed here
+    // Pi registered → stream URL pushed here (fallback for direct MJPEG)
     const offStream = socket.on("STREAM_URL", (data) => {
       const { url, farmerId: streamFarmerId } = data as { url: string; farmerId: string | null };
       if (!streamFarmerId || streamFarmerId === get().farmerId) {
         set({ liveStreamUrl: url || null });
+      }
+    });
+
+    // Video frame relay — Pi sends JPEG frames through backend WS
+    const offVideoFrame = socket.on("VIDEO_FRAME", (data) => {
+      const { frame, farmerId: frameFarmerId } = data as { frame: string; farmerId: string };
+      if (!frameFarmerId || frameFarmerId === get().farmerId) {
+        set({ videoFrame: `data:image/jpeg;base64,${frame}` });
       }
     });
 
@@ -279,7 +351,7 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
       if (!piFarmerId || piFarmerId === get().farmerId) {
         set({ piConnected: online });
         if (!online) {
-          set({ liveStreamUrl: null });
+          set({ liveStreamUrl: null, videoFrame: null });
         }
       }
     });
@@ -296,10 +368,11 @@ export const useFarmerStore = create<FarmerStore>((set, get) => ({
       offCapture();
       offCredit();
       offStream();
+      offVideoFrame();
       offPiStatus();
       offScanStatus();
       socket.leaveFarm(farmerId);
-      set({ wsConnected: false, piConnected: false });
+      set({ wsConnected: false, piConnected: false, videoFrame: null });
     };
   },
 }));

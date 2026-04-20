@@ -9,6 +9,7 @@ import capturesRoutes from "./modules/captures/captures.routes";
 import creditsRoutes from "./modules/credits/credits.routes";
 import govRoutes from "./modules/government/gov.routes";
 import { getConnectedCount } from "./realtime/ws-server";
+import path from "path";
 
 const app = express();
 
@@ -25,7 +26,8 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(morgan("dev"));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -34,6 +36,13 @@ app.use("/api/farmers", farmerRoutes);
 app.use("/api/captures", capturesRoutes);
 app.use("/api/credits", creditsRoutes);
 app.use("/api/gov", govRoutes);
+
+// Serve uploads directory statically
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+app.use(
+  "/backup-assets",
+  express.static(process.env.BACKUP_CAPTURES_DIR || path.resolve(process.cwd(), "data", "pi-backups"))
+);
 
 app.get("/api/health", (_req, res) => {
   res.json({

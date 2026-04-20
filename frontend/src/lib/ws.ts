@@ -12,6 +12,7 @@ type EventType =
   | "CREDIT_UPDATE"
   | "SCAN_STATUS"
   | "STREAM_URL"
+  | "VIDEO_FRAME"
   | "PI_STATUS"
   | "PONG"
   | "open"

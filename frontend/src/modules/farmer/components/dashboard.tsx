@@ -26,8 +26,9 @@ import {
   MonitorOff,
 } from "lucide-react";
 import { INSECT_KINDS } from "@/lib/mock-data";
-import type { WaterSource, FarmingMethod } from "@/modules/shared/types";
+import type { WaterSource, FarmingMethod, InsectCapture } from "@/modules/shared/types";
 import { cn } from "@/lib/utils";
+import { CaptureDetailModal } from "./capture-detail-modal";
 
 function formatWaterSource(w: WaterSource): string {
   const labels: Record<WaterSource, string> = {
@@ -60,6 +61,7 @@ function LiveScanPreview() {
     stopScan,
     simulateCapture,
     liveStreamUrl,
+    videoFrame,
     wsConnected,
     piConnected,
   } = useFarmerStore();
@@ -76,8 +78,10 @@ function LiveScanPreview() {
     return () => clearInterval(interval);
   }, [liveScan.isScanning, piConnected, simulateCapture]);
 
+  // Primary: WS-relayed frames. Fallback: direct MJPEG stream URL.
+  const hasVideoFrame = Boolean(videoFrame);
   const showStream =
-    Boolean(liveStreamUrl) && streamErrorForUrl !== liveStreamUrl;
+    !hasVideoFrame && Boolean(liveStreamUrl) && streamErrorForUrl !== liveStreamUrl;
 
   return (
     <Card className="relative overflow-hidden">
@@ -125,9 +129,16 @@ function LiveScanPreview() {
             liveScan.lastCapture && "ring-2 ring-[var(--green-light)]"
           )}
         >
-          {showStream ? (
-            // MJPEG stream from the Pi — the browser polls this URL continuously.
-            // onerror fires if the Pi stream drops or becomes unreachable.
+          {hasVideoFrame ? (
+            // Video frame relayed through the backend WebSocket — no direct Pi connection needed.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={videoFrame ?? undefined}
+              alt="Live Pi camera feed"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : showStream ? (
+            // Fallback: direct MJPEG stream from the Pi (only works on same network).
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={liveStreamUrl ?? undefined}
@@ -145,15 +156,7 @@ function LiveScanPreview() {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border-2 border-white/40 rounded-full" />
               </div>
 
-              {!showStream && liveStreamUrl ? (
-                <div className="text-center px-4">
-                  <MonitorOff size={28} className="text-white/40 mx-auto mb-2" />
-                  <p className="text-white/50 text-xs">Stream unavailable</p>
-                  <p className="text-white/30 text-[10px] mt-1">
-                    Check that the Pi is reachable on your network
-                  </p>
-                </div>
-              ) : liveScan.isScanning ? (
+              {liveScan.isScanning ? (
                 <div className="text-center">
                   <ScanLine size={32} className="text-white/60 mx-auto mb-2 animate-pulse" />
                   <p className="text-white/60 text-xs">
@@ -227,6 +230,7 @@ function LiveScanPreview() {
 
 export function FarmerDashboard() {
   const { carbonCredits, captures, farmerName, currentFarmer, isLoading, error } = useFarmerStore();
+  const [selectedCapture, setSelectedCapture] = useState<InsectCapture | null>(null);
 
   const location = currentFarmer?.location ?? "";
   const weather = currentFarmer?.weather;
@@ -408,10 +412,23 @@ export function FarmerDashboard() {
             <div className="space-y-1">
               {recentCaptures.map((capture) => {
                 const kindMeta = INSECT_KINDS.find((k) => k.kind === capture.kind);
+                const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/api$/, "");
+                const imageSrc = capture.imageUrl ? `${BACKEND_URL}${capture.imageUrl}` : null;
+                
                 return (
                   <ListRow
                     key={capture.id}
-                    leading={<EmojiTile emoji={kindMeta?.emoji ?? "🦋"} />}
+                    onClick={() => setSelectedCapture(capture)}
+                    leading={
+                      imageSrc ? (
+                        <div className="w-10 h-10 rounded-xl bg-[var(--green-pale)]/50 shrink-0 overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={imageSrc} alt={capture.commonName} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <EmojiTile emoji={kindMeta?.emoji ?? "🦋"} />
+                      )
+                    }
                     title={capture.commonName}
                     subtitle={`${capture.scientificName} · ${capture.trajectory ?? ""}`}
                     trailing={
@@ -430,6 +447,13 @@ export function FarmerDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {selectedCapture && (
+        <CaptureDetailModal 
+          capture={selectedCapture} 
+          onClose={() => setSelectedCapture(null)} 
+        />
+      )}
     </div>
   );
 }

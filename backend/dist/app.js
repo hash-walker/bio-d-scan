@@ -14,6 +14,7 @@ const captures_routes_1 = __importDefault(require("./modules/captures/captures.r
 const credits_routes_1 = __importDefault(require("./modules/credits/credits.routes"));
 const gov_routes_1 = __importDefault(require("./modules/government/gov.routes"));
 const ws_server_1 = require("./realtime/ws-server");
+const path_1 = __importDefault(require("path"));
 const app = (0, express_1.default)();
 // ─── Middleware ───────────────────────────────────────────────────────────────
 // Allow comma-separated origins (e.g. http://localhost:3000,http://127.0.0.1:3000)
@@ -34,6 +35,9 @@ app.use("/api/farmers", farmer_routes_1.default);
 app.use("/api/captures", captures_routes_1.default);
 app.use("/api/credits", credits_routes_1.default);
 app.use("/api/gov", gov_routes_1.default);
+// Serve uploads directory statically
+app.use("/uploads", express_1.default.static(path_1.default.resolve(process.cwd(), "uploads")));
+app.use("/backup-assets", express_1.default.static(process.env.BACKUP_CAPTURES_DIR || path_1.default.resolve(process.cwd(), "data", "pi-backups")));
 app.get("/api/health", (_req, res) => {
     res.json({
         status: "ok",

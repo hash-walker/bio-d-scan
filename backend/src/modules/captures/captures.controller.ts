@@ -2,8 +2,13 @@ import type { Request, Response, NextFunction } from "express";
 import { capturesService } from "./captures.service";
 import { MqttCaptureSchema } from "./captures.schema";
 import { createError } from "../../middleware/error-handler";
+import { captureBackupsController } from "./capture-backups.controller";
 
 export const capturesController = {
+  getBackupCaptures: captureBackupsController.listCaptures,
+  getBackupRuns: captureBackupsController.listRuns,
+  getBackupRunCaptures: captureBackupsController.getRunCaptures,
+
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const { farmerId, kind, limit } = req.query as Record<string, string>;

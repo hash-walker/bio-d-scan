@@ -19,6 +19,7 @@ const captureSchema = new mongoose_1.default.Schema({
     bboxXyxy: { type: [Number], required: true }, // [x1, y1, x2, y2]
     imageS3Uri: { type: String, default: null },
     imagePath: { type: String, default: null },
+    imageUrl: { type: String, default: null },
     backupRunId: { type: String, default: null },
     // Enriched by backend
     farmerId: { type: String, default: null }, // which farm this belongs to

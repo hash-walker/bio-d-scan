@@ -6,6 +6,7 @@ import { connectMongo } from "./db/mongo";
 import { createWsServer } from "./realtime/ws-server";
 import { startMqttBridge, stopMqttBridge } from "./realtime/mqtt-bridge";
 import { createLogger } from "./lib/logger";
+import { startPiBackupSync } from "./integrations/pi-backup-sync";
 
 const log = createLogger("server");
 
@@ -20,6 +21,7 @@ async function bootstrap() {
 
   // Start the MQTT bridge (silently skipped if AWS env vars are missing)
   startMqttBridge();
+  const stopPiBackupSync = startPiBackupSync();
 
   server.listen(config.port, () => {
     log.info(`HTTP server listening on http://localhost:${config.port}`);
@@ -31,6 +33,7 @@ async function bootstrap() {
   const shutdown = async (signal: string) => {
     log.info(`${signal} received, shutting down…`);
     stopMqttBridge();
+    stopPiBackupSync();
     server.close(() => {
       log.info("Server closed");
       process.exit(0);

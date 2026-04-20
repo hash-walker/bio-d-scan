@@ -38,5 +38,15 @@ exports.config = {
     liveStreamUrl: optional("LIVE_STREAM_URL", ""),
     jwtSecret: optional("JWT_SECRET", "bioscan-dev-secret-change-in-production"),
     jwtExpiresIn: optional("JWT_EXPIRES_IN", "7d"),
+    piSync: {
+        enabled: optional("PI_SYNC_ENABLED", "false") === "true",
+        host: optional("PI_SYNC_HOST", ""),
+        port: parseInt(optional("PI_SYNC_PORT", "22"), 10),
+        username: optional("PI_SYNC_USERNAME", ""),
+        password: optional("PI_SYNC_PASSWORD", ""),
+        remoteDir: optional("PI_SYNC_REMOTE_DIR", ""),
+        localDir: optional("BACKUP_CAPTURES_DIR", path_1.default.resolve(process.cwd(), "data", "pi-backups")),
+        intervalMs: parseInt(optional("PI_SYNC_INTERVAL_MS", "60000"), 10),
+    },
 };
 //# sourceMappingURL=config.js.map

@@ -1,5 +1,5 @@
 import { z } from "zod";
-export declare const MqttCaptureSchema: z.ZodObject<{
+export declare const MqttCaptureSchema: z.ZodEffects<z.ZodObject<{
     tracking_id: z.ZodNumber;
     label: z.ZodString;
     confidence: z.ZodNumber;
@@ -8,6 +8,7 @@ export declare const MqttCaptureSchema: z.ZodObject<{
     backup_run_id: z.ZodOptional<z.ZodString>;
     image_path: z.ZodOptional<z.ZodString>;
     image_s3_uri: z.ZodOptional<z.ZodString>;
+    image_b64: z.ZodOptional<z.ZodString>;
     farmer_id: z.ZodOptional<z.ZodString>;
     lat: z.ZodOptional<z.ZodNumber>;
     lng: z.ZodOptional<z.ZodNumber>;
@@ -25,6 +26,7 @@ export declare const MqttCaptureSchema: z.ZodObject<{
     backup_run_id?: string | undefined;
     image_path?: string | undefined;
     image_s3_uri?: string | undefined;
+    image_b64?: string | undefined;
 }, {
     label: string;
     confidence: number;
@@ -38,7 +40,22 @@ export declare const MqttCaptureSchema: z.ZodObject<{
     backup_run_id?: string | undefined;
     image_path?: string | undefined;
     image_s3_uri?: string | undefined;
-}>;
+    image_b64?: string | undefined;
+}>, {
+    label: string;
+    confidence: number;
+    timestamp: string;
+    tracking_id: number;
+    bbox_xyxy: number[];
+    lat?: number | undefined;
+    lng?: number | undefined;
+    farmer_id?: string | undefined;
+    trajectory?: string | undefined;
+    backup_run_id?: string | undefined;
+    image_path?: string | undefined;
+    image_s3_uri?: string | undefined;
+    image_b64?: string | undefined;
+}, unknown>;
 export type MqttCaptureInput = z.infer<typeof MqttCaptureSchema>;
 export declare function labelToKind(label: string): string;
 export interface Capture {
@@ -52,6 +69,7 @@ export interface Capture {
     bboxXyxy: number[];
     imageS3Uri: string | null;
     imagePath: string | null;
+    imageUrl: string | null;
     lat: number | null;
     lng: number | null;
     trajectory: string | null;

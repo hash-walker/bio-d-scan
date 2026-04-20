@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFarmerStore } from "@/modules/farmer/store";
 import { INSECT_KINDS } from "@/lib/mock-data";
 import { Card, CardContent, CardActionHeader } from "@/components/ui/card";
@@ -17,6 +18,8 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
+import { CaptureDetailModal } from "./capture-detail-modal";
+import type { InsectCapture } from "@/modules/shared/types";
 
 function InsectKindTile({
   kind,
@@ -78,27 +81,28 @@ function InsectKindTile({
 
 function CaptureCard({
   capture,
+  onClick,
 }: {
-  capture: {
-    id: string;
-    kind: InsectKind;
-    commonName: string;
-    scientificName: string;
-    timestamp: string;
-    lat: number;
-    lng: number;
-    trajectory?: string;
-    aiConfidence: number;
-    notes?: string;
-  };
+  capture: InsectCapture;
+  onClick?: () => void;
 }) {
   const kindMeta = INSECT_KINDS.find((k) => k.kind === capture.kind);
+  const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/api$/, "");
+  const imageSrc = capture.imageUrl ? `${BACKEND_URL}${capture.imageUrl}` : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-[var(--border-subtle)] p-4 hover:shadow-sm transition-shadow">
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-white rounded-2xl border border-[var(--border-subtle)] p-4 hover:shadow-md hover:border-[var(--green-light)] transition-all group"
+    >
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[var(--green-pale)]/50 flex items-center justify-center text-xl shrink-0">
-          {kindMeta?.emoji}
+        <div className="w-12 h-12 rounded-xl bg-[var(--green-pale)]/50 flex items-center justify-center text-2xl shrink-0 overflow-hidden border border-[var(--border-subtle)]">
+          {imageSrc ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={imageSrc} alt={capture.commonName} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+          ) : (
+            kindMeta?.emoji
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -146,13 +150,14 @@ function CaptureCard({
           )}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
 export function InsectsPage() {
   const { captures, selectedKind, setSelectedKind, startScan, liveScan } =
     useFarmerStore();
+  const [selectedCapture, setSelectedCapture] = useState<InsectCapture | null>(null);
 
   const displayedCaptures = selectedKind
     ? captures.filter((c) => c.kind === selectedKind)
@@ -224,12 +229,23 @@ export function InsectsPage() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {displayedCaptures.map((capture) => (
-                <CaptureCard key={capture.id} capture={capture} />
+                <CaptureCard 
+                  key={capture.id} 
+                  capture={capture} 
+                  onClick={() => setSelectedCapture(capture)}
+                />
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {selectedCapture && (
+        <CaptureDetailModal 
+          capture={selectedCapture} 
+          onClose={() => setSelectedCapture(null)} 
+        />
+      )}
     </div>
   );
 }

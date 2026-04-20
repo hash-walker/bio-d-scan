@@ -11,6 +11,7 @@ const mongo_1 = require("./db/mongo");
 const ws_server_1 = require("./realtime/ws-server");
 const mqtt_bridge_1 = require("./realtime/mqtt-bridge");
 const logger_1 = require("./lib/logger");
+const pi_backup_sync_1 = require("./integrations/pi-backup-sync");
 const log = (0, logger_1.createLogger)("server");
 async function bootstrap() {
     // Connect to databases (fail fast if unavailable)
@@ -21,6 +22,7 @@ async function bootstrap() {
     (0, ws_server_1.createWsServer)(server);
     // Start the MQTT bridge (silently skipped if AWS env vars are missing)
     (0, mqtt_bridge_1.startMqttBridge)();
+    const stopPiBackupSync = (0, pi_backup_sync_1.startPiBackupSync)();
     server.listen(config_1.config.port, () => {
         log.info(`HTTP server listening on http://localhost:${config_1.config.port}`);
         log.info(`WebSocket server at    ws://localhost:${config_1.config.port}/ws`);
@@ -30,6 +32,7 @@ async function bootstrap() {
     const shutdown = async (signal) => {
         log.info(`${signal} received, shutting down…`);
         (0, mqtt_bridge_1.stopMqttBridge)();
+        stopPiBackupSync();
         server.close(() => {
             log.info("Server closed");
             process.exit(0);

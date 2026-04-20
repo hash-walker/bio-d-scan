@@ -4,7 +4,11 @@ exports.capturesController = void 0;
 const captures_service_1 = require("./captures.service");
 const captures_schema_1 = require("./captures.schema");
 const error_handler_1 = require("../../middleware/error-handler");
+const capture_backups_controller_1 = require("./capture-backups.controller");
 exports.capturesController = {
+    getBackupCaptures: capture_backups_controller_1.captureBackupsController.listCaptures,
+    getBackupRuns: capture_backups_controller_1.captureBackupsController.listRuns,
+    getBackupRunCaptures: capture_backups_controller_1.captureBackupsController.getRunCaptures,
     async getAll(req, res, next) {
         try {
             const { farmerId, kind, limit } = req.query;

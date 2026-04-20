@@ -30,6 +30,7 @@
 }
 
 body {
+  margin: 0;
   background-color: var(--bg-cream);
   color: var(--text-dark);
   font-family: var(--font-dm-sans), system-ui, sans-serif;

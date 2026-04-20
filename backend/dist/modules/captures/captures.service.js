@@ -1,11 +1,17 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.capturesService = void 0;
+const promises_1 = __importDefault(require("fs/promises"));
+const path_1 = __importDefault(require("path"));
 const mongo_1 = require("../../db/mongo");
 const postgres_1 = require("../../db/postgres");
 const logger_1 = require("../../lib/logger");
 const ws_server_1 = require("../../realtime/ws-server");
 const captures_schema_1 = require("./captures.schema");
+const UPLOADS_DIR = path_1.default.resolve(process.cwd(), "uploads", "captures");
 const log = (0, logger_1.createLogger)("captures");
 function docToCapture(doc) {
     return {
@@ -19,6 +25,7 @@ function docToCapture(doc) {
         bboxXyxy: doc.bboxXyxy,
         imageS3Uri: doc.imageS3Uri ?? null,
         imagePath: doc.imagePath ?? null,
+        imageUrl: doc.imageUrl ?? null,
         lat: doc.lat ?? null,
         lng: doc.lng ?? null,
         trajectory: doc.trajectory ?? null,
@@ -28,6 +35,19 @@ exports.capturesService = {
     /** Called by the MQTT bridge for every new detection from the Pi. */
     async ingest(payload) {
         const kind = (0, captures_schema_1.labelToKind)(payload.label);
+        let imageUrl = null;
+        if (payload.image_b64) {
+            try {
+                await promises_1.default.mkdir(UPLOADS_DIR, { recursive: true });
+                const filename = `capture_${payload.tracking_id}_${Date.now()}.jpg`;
+                const filepath = path_1.default.join(UPLOADS_DIR, filename);
+                await promises_1.default.writeFile(filepath, Buffer.from(payload.image_b64, "base64"));
+                imageUrl = `/uploads/captures/${filename}`;
+            }
+            catch (err) {
+                log.error("Failed to save base64 image", err);
+            }
+        }
         const doc = await mongo_1.CaptureModel.findOneAndUpdate({ trackingId: payload.tracking_id }, {
             trackingId: payload.tracking_id,
             label: payload.label,
@@ -37,6 +57,7 @@ exports.capturesService = {
             bboxXyxy: payload.bbox_xyxy,
             imageS3Uri: payload.image_s3_uri ?? null,
             imagePath: payload.image_path ?? null,
+            imageUrl,
             backupRunId: payload.backup_run_id ?? null,
             farmerId: payload.farmer_id ?? null,
             lat: payload.lat ?? null,

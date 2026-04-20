@@ -15,6 +15,7 @@ const captureSchema = new mongoose.Schema(
     bboxXyxy: { type: [Number], required: true },     // [x1, y1, x2, y2]
     imageS3Uri: { type: String, default: null },
     imagePath: { type: String, default: null },
+    imageUrl: { type: String, default: null },
     backupRunId: { type: String, default: null },
 
     // Enriched by backend
@@ -34,7 +35,7 @@ const captureSchema = new mongoose.Schema(
 
 captureSchema.index({ farmerId: 1, timestamp: -1 });
 captureSchema.index({ kind: 1 });
-captureSchema.index({ trackingId: 1 }, { unique: true });
+captureSchema.index({ trackingId: 1, backupRunId: 1 }, { unique: true });
 
 export const CaptureModel = mongoose.model("Capture", captureSchema);
 

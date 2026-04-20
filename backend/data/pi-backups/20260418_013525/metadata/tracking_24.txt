@@ -1,0 +1,9 @@
+tracking_id: 24
+label: ladybug
+confidence: 0.8182
+first_seen_at: 2026-04-18T01:36:43+05:00
+best_seen_at: 2026-04-18T01:36:46+05:00
+image_path: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260418_013525/images/tracking_24.jpg
+bbox_xyxy: [1022, 499, 1164, 562]
+frame_size: 1920x1080
+backup_run_id: 20260418_013525

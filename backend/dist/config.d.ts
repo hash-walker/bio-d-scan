@@ -20,4 +20,14 @@ export declare const config: {
     readonly liveStreamUrl: string;
     readonly jwtSecret: string;
     readonly jwtExpiresIn: string;
+    readonly piSync: {
+        readonly enabled: boolean;
+        readonly host: string;
+        readonly port: number;
+        readonly username: string;
+        readonly password: string;
+        readonly remoteDir: string;
+        readonly localDir: string;
+        readonly intervalMs: number;
+    };
 };

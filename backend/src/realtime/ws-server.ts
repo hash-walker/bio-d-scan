@@ -59,7 +59,11 @@ export function createWsServer(server: import("http").Server): WebSocketServer {
       send(ws, { type: "STREAM_URL", data: { url: config.liveStreamUrl, farmerId: null } });
     }
 
-    ws.on("message", (raw) => {
+    ws.on("message", (raw, isBinary) => {
+      // ── Binary frame relay (video from Pi) ─────────────────────────────
+      // Pi sends: JSON { type: "VIDEO_FRAME", data: { farmerId, frame: "<base64>" } }
+      // We relay it to all subscribed browser clients for that farm.
+
       try {
         const msg = JSON.parse(raw.toString()) as { type: string; data?: Record<string, unknown> };
         const farmerId = msg.data?.farmerId ? String(msg.data.farmerId) : null;
@@ -77,9 +81,6 @@ export function createWsServer(server: import("http").Server): WebSocketServer {
               const pi = getPiForFarm(farmerId);
               if (pi) {
                 send(ws, { type: "PI_STATUS", data: { online: true, farmerId } });
-                if (pi.streamUrl !== null) {
-                  send(ws, { type: "STREAM_URL", data: { url: pi.streamUrl, farmerId } });
-                }
               } else {
                 send(ws, { type: "PI_STATUS", data: { online: false, farmerId } });
               }
@@ -124,13 +125,25 @@ export function createWsServer(server: import("http").Server): WebSocketServer {
           case "PI_REGISTER":
             if (farmerId) {
               client.piFor = farmerId;
-              const streamUrl = msg.data?.streamUrl ? String(msg.data.streamUrl) : null;
-              client.streamUrl = streamUrl;
-              log.info(`Pi registered for farm ${farmerId} — stream: ${streamUrl ?? "none"}`);
+              client.streamUrl = null;
+              log.info(`Pi registered for farm ${farmerId}`);
 
-              // Tell all browsers: the Pi is online and here is its stream URL.
+              // Tell all browsers: the Pi is online.
               broadcastToFarm(farmerId, { type: "PI_STATUS", data: { online: true, farmerId } });
-              broadcastToFarm(farmerId, { type: "STREAM_URL", data: { url: streamUrl || "", farmerId } });
+            }
+            break;
+
+          // Video frame relay — Pi sends base64 JPEG frames, we forward to browsers
+          case "VIDEO_FRAME":
+            if (farmerId && msg.data?.frame) {
+              const frameMsg = JSON.stringify(msg);
+              for (const c of clients) {
+                if (c.ws.readyState !== WebSocket.OPEN) continue;
+                if (c.piFor) continue; // skip Pi connections
+                if (c.subscribedFarms.has(farmerId)) {
+                  c.ws.send(frameMsg);
+                }
+              }
             }
             break;
         }

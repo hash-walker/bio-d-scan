@@ -81,10 +81,11 @@ function FarmerCard({
 }
 
 function apiCaptureToInsect(c: ApiCapture): InsectCapture {
-  const kindMeta = INSECT_KINDS.find((k) => k.kind === c.kind) ?? INSECT_KINDS[0];
+  const normalizedKind = c.kind === "firefly" ? "ladybug" : c.kind;
+  const kindMeta = INSECT_KINDS.find((k) => k.kind === normalizedKind) ?? INSECT_KINDS[0];
   return {
     id: c.id,
-    kind: (c.kind as InsectKind) ?? "beetle",
+    kind: (normalizedKind as InsectKind) ?? "beetle",
     commonName: `${c.label.charAt(0).toUpperCase()}${c.label.slice(1)} #${c.trackingId}`,
     scientificName: kindMeta?.scientificName ?? "Specimen spp.",
     timestamp: c.timestamp,

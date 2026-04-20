@@ -48,12 +48,22 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL required}
       DATABASE_URL: postgresql://${POSTGRES_USER:-bioscan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bioscan}
       MONGODB_URI: mongodb://mongo:27017/bioscan
+      BACKUP_CAPTURES_DIR: ${BACKUP_CAPTURES_DIR:-/app/data/pi-backups}
+      PI_SYNC_ENABLED: ${PI_SYNC_ENABLED:-true}
+      PI_SYNC_HOST: ${PI_SYNC_HOST:-10.1.148.191}
+      PI_SYNC_PORT: ${PI_SYNC_PORT:-22}
+      PI_SYNC_USERNAME: ${PI_SYNC_USERNAME:-muneeb}
+      PI_SYNC_PASSWORD: ${PI_SYNC_PASSWORD:-ubuntu}
+      PI_SYNC_REMOTE_DIR: ${PI_SYNC_REMOTE_DIR:-/home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups}
+      PI_SYNC_INTERVAL_MS: ${PI_SYNC_INTERVAL_MS:-60000}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_IOT_ENDPOINT: ${AWS_IOT_ENDPOINT:-}
       AWS_IOT_TOPIC: ${AWS_IOT_TOPIC:-detections}
       LIVE_STREAM_URL: ${LIVE_STREAM_URL:-}
+    volumes:
+      - ./backend/data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +80,8 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    environment:
+      NEXT_PUBLIC_CAPTURE_REFRESH_MS: ${NEXT_PUBLIC_CAPTURE_REFRESH_MS:-60000}
     depends_on:
       - backend
 

@@ -21,11 +21,19 @@ export default function FarmerLayout({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let wsCleanup: (() => void) | undefined;
+    let refreshTimer: ReturnType<typeof setInterval> | undefined;
     (async () => {
       await fetchFarmerData();
       wsCleanup = initWebSocket();
+      const refreshMs = Number(process.env.NEXT_PUBLIC_CAPTURE_REFRESH_MS || "60000");
+      refreshTimer = setInterval(() => {
+        void fetchFarmerData();
+      }, refreshMs);
     })();
-    return () => wsCleanup?.();
+    return () => {
+      wsCleanup?.();
+      if (refreshTimer) clearInterval(refreshTimer);
+    };
   }, [fetchFarmerData, initWebSocket]);
 
   const handleLogout = () => {

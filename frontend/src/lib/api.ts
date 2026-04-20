@@ -67,9 +67,66 @@ export interface Capture {
   bboxXyxy: number[];
   imageS3Uri: string | null;
   imagePath: string | null;
+  imageUrl: string | null;
   lat: number | null;
   lng: number | null;
   trajectory: string | null;
+}
+
+export interface BackupRun {
+  id: string;
+  startedAt: string | null;
+  latestSeenAt: string | null;
+  detectionCount: number;
+  imageCount: number;
+  metadataCount: number;
+}
+
+export interface BackupCaptureRaw {
+  tracking_id: number;
+  label: string;
+  confidence: number;
+  first_seen_at: string;
+  best_seen_at: string;
+  image_path?: string;
+  bbox?: number[];
+  frame_size?: number[];
+  backup_run_id?: string;
+}
+
+export interface BackupCapture {
+  id: string;
+  runId: string;
+  trackingId: number;
+  label: string;
+  kind: string;
+  confidence: number;
+  firstSeenAt: string;
+  bestSeenAt: string;
+  timestamp: string;
+  imageUrl: string | null;
+  imagePath: string | null;
+  bboxXyxy: number[];
+  frameSize: number[] | null;
+  raw: BackupCaptureRaw;
+}
+
+export interface BackupRunsResponse {
+  runs: BackupRun[];
+  nextOffset: number | null;
+  rootDir: string;
+}
+
+export interface BackupRunCapturesResponse {
+  run: BackupRun;
+  captures: BackupCapture[];
+  nextOffset: number | null;
+}
+
+export interface BackupCapturesResponse {
+  captures: BackupCapture[];
+  nextOffset: number | null;
+  total: number;
 }
 
 export interface Transaction {
@@ -193,6 +250,29 @@ export const capturesApi = {
     return request<Capture[]>(`/captures?${qs}`);
   },
   stats: () => request<Record<string, number>>("/captures/stats"),
+  backupRuns: (params?: { limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+    if (params?.offset !== undefined) qs.set("offset", String(params.offset));
+    return request<BackupRunsResponse>(`/captures/backups/runs?${qs}`);
+  },
+  backupRunCaptures: (
+    runId: string,
+    params?: { limit?: number; offset?: number }
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+    if (params?.offset !== undefined) qs.set("offset", String(params.offset));
+    return request<BackupRunCapturesResponse>(
+      `/captures/backups/runs/${encodeURIComponent(runId)}?${qs}`
+    );
+  },
+  backupCaptures: (params?: { limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+    if (params?.offset !== undefined) qs.set("offset", String(params.offset));
+    return request<BackupCapturesResponse>(`/captures/backups?${qs}`);
+  },
 };
 
 // ─── Credits ──────────────────────────────────────────────────────────────────

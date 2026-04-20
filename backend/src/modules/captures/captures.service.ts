@@ -1,8 +1,13 @@
+import fs from "fs/promises";
+import path from "path";
 import { CaptureModel } from "../../db/mongo";
 import { pool } from "../../db/postgres";
 import { createLogger } from "../../lib/logger";
 import { broadcastCapture, broadcastCreditUpdate } from "../../realtime/ws-server";
 import { labelToKind, type MqttCaptureInput, type Capture } from "./captures.schema";
+
+const UPLOADS_DIR = path.resolve(process.cwd(), "uploads", "captures");
+
 
 const log = createLogger("captures");
 
@@ -18,6 +23,7 @@ function docToCapture(doc: Record<string, unknown>): Capture {
     bboxXyxy: doc.bboxXyxy as number[],
     imageS3Uri: (doc.imageS3Uri as string) ?? null,
     imagePath: (doc.imagePath as string) ?? null,
+    imageUrl: (doc.imageUrl as string) ?? null,
     lat: (doc.lat as number) ?? null,
     lng: (doc.lng as number) ?? null,
     trajectory: (doc.trajectory as string) ?? null,
@@ -29,8 +35,21 @@ export const capturesService = {
   async ingest(payload: MqttCaptureInput): Promise<Capture> {
     const kind = labelToKind(payload.label);
 
+    let imageUrl: string | null = null;
+    if (payload.image_b64) {
+      try {
+        await fs.mkdir(UPLOADS_DIR, { recursive: true });
+        const filename = `capture_${payload.tracking_id}_${Date.now()}.jpg`;
+        const filepath = path.join(UPLOADS_DIR, filename);
+        await fs.writeFile(filepath, Buffer.from(payload.image_b64, "base64"));
+        imageUrl = `/uploads/captures/${filename}`;
+      } catch (err) {
+        log.error("Failed to save base64 image", err);
+      }
+    }
+
     const doc = await CaptureModel.findOneAndUpdate(
-      { trackingId: payload.tracking_id },
+      { trackingId: payload.tracking_id, backupRunId: payload.backup_run_id },
       {
         trackingId: payload.tracking_id,
         label: payload.label,
@@ -40,6 +59,7 @@ export const capturesService = {
         bboxXyxy: payload.bbox_xyxy,
         imageS3Uri: payload.image_s3_uri ?? null,
         imagePath: payload.image_path ?? null,
+        imageUrl,
         backupRunId: payload.backup_run_id ?? null,
         farmerId: payload.farmer_id ?? null,
         lat: payload.lat ?? null,

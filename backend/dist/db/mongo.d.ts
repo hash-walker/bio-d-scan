@@ -10,6 +10,7 @@ export declare const CaptureModel: mongoose.Model<{
     farmerId?: string | null | undefined;
     imageS3Uri?: string | null | undefined;
     imagePath?: string | null | undefined;
+    imageUrl?: string | null | undefined;
     backupRunId?: string | null | undefined;
     kind?: string | null | undefined;
     trajectory?: string | null | undefined;
@@ -24,6 +25,7 @@ export declare const CaptureModel: mongoose.Model<{
     farmerId?: string | null | undefined;
     imageS3Uri?: string | null | undefined;
     imagePath?: string | null | undefined;
+    imageUrl?: string | null | undefined;
     backupRunId?: string | null | undefined;
     kind?: string | null | undefined;
     trajectory?: string | null | undefined;
@@ -41,6 +43,7 @@ export declare const CaptureModel: mongoose.Model<{
     farmerId?: string | null | undefined;
     imageS3Uri?: string | null | undefined;
     imagePath?: string | null | undefined;
+    imageUrl?: string | null | undefined;
     backupRunId?: string | null | undefined;
     kind?: string | null | undefined;
     trajectory?: string | null | undefined;
@@ -62,6 +65,7 @@ export declare const CaptureModel: mongoose.Model<{
     farmerId?: string | null | undefined;
     imageS3Uri?: string | null | undefined;
     imagePath?: string | null | undefined;
+    imageUrl?: string | null | undefined;
     backupRunId?: string | null | undefined;
     kind?: string | null | undefined;
     trajectory?: string | null | undefined;
@@ -76,6 +80,7 @@ export declare const CaptureModel: mongoose.Model<{
     farmerId?: string | null | undefined;
     imageS3Uri?: string | null | undefined;
     imagePath?: string | null | undefined;
+    imageUrl?: string | null | undefined;
     backupRunId?: string | null | undefined;
     kind?: string | null | undefined;
     trajectory?: string | null | undefined;
@@ -93,6 +98,7 @@ export declare const CaptureModel: mongoose.Model<{
     farmerId?: string | null | undefined;
     imageS3Uri?: string | null | undefined;
     imagePath?: string | null | undefined;
+    imageUrl?: string | null | undefined;
     backupRunId?: string | null | undefined;
     kind?: string | null | undefined;
     trajectory?: string | null | undefined;

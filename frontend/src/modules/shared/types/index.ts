@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // ─── Insect types ────────────────────────────────────────────────────────────
 
-export const InsectKind = z.enum(["butterfly", "beetle", "bee", "firefly"]);
+export const InsectKind = z.enum(["butterfly", "beetle", "bee", "ladybug"]);
 export type InsectKind = z.infer<typeof InsectKind>;
 
 export const InsectCaptureSchema = z.object({
@@ -17,6 +17,13 @@ export const InsectCaptureSchema = z.object({
   aiConfidence: z.number().min(0).max(100),
   imageUrl: z.string().optional(),
   notes: z.string().optional(),
+  source: z.enum(["live", "backup"]).optional(),
+  backupRunId: z.string().optional(),
+  firstSeenAt: z.string().optional(),
+  bestSeenAt: z.string().optional(),
+  bboxXyxy: z.array(z.number()).length(4).optional(),
+  frameSize: z.array(z.number()).length(2).optional(),
+  rawData: z.unknown().optional(),
 });
 export type InsectCapture = z.infer<typeof InsectCaptureSchema>;
 

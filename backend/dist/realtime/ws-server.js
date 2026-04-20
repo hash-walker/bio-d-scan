@@ -47,7 +47,10 @@ function createWsServer(server) {
         if (config_1.config.liveStreamUrl) {
             send(ws, { type: "STREAM_URL", data: { url: config_1.config.liveStreamUrl, farmerId: null } });
         }
-        ws.on("message", (raw) => {
+        ws.on("message", (raw, isBinary) => {
+            // ── Binary frame relay (video from Pi) ─────────────────────────────
+            // Pi sends: JSON { type: "VIDEO_FRAME", data: { farmerId, frame: "<base64>" } }
+            // We relay it to all subscribed browser clients for that farm.
             try {
                 const msg = JSON.parse(raw.toString());
                 const farmerId = msg.data?.farmerId ? String(msg.data.farmerId) : null;
@@ -57,11 +60,13 @@ function createWsServer(server) {
                         if (farmerId) {
                             client.subscribedFarms.add(farmerId);
                             log.debug(`Browser joined farm ${farmerId}`);
-                            // If the Pi for this farm has already registered, replay its stream URL
-                            // to this newly-joined browser (it missed the original broadcast).
+                            // Tell the browser whether a Pi is currently online for this farm.
                             const pi = getPiForFarm(farmerId);
-                            if (pi?.streamUrl) {
-                                send(ws, { type: "STREAM_URL", data: { url: pi.streamUrl, farmerId } });
+                            if (pi) {
+                                send(ws, { type: "PI_STATUS", data: { online: true, farmerId } });
+                            }
+                            else {
+                                send(ws, { type: "PI_STATUS", data: { online: false, farmerId } });
                             }
                         }
                         break;
@@ -100,13 +105,24 @@ function createWsServer(server) {
                     case "PI_REGISTER":
                         if (farmerId) {
                             client.piFor = farmerId;
-                            const streamUrl = msg.data?.streamUrl ? String(msg.data.streamUrl) : null;
-                            client.streamUrl = streamUrl;
-                            log.info(`Pi registered for farm ${farmerId} — stream: ${streamUrl ?? "none"}`);
-                            // Tell all browsers currently watching this farm about the stream URL.
-                            // Late joiners get it via JOIN_FARM (which replays from client.streamUrl).
-                            if (streamUrl) {
-                                broadcastToFarm(farmerId, { type: "STREAM_URL", data: { url: streamUrl, farmerId } });
+                            client.streamUrl = null;
+                            log.info(`Pi registered for farm ${farmerId}`);
+                            // Tell all browsers: the Pi is online.
+                            broadcastToFarm(farmerId, { type: "PI_STATUS", data: { online: true, farmerId } });
+                        }
+                        break;
+                    // Video frame relay — Pi sends base64 JPEG frames, we forward to browsers
+                    case "VIDEO_FRAME":
+                        if (farmerId && msg.data?.frame) {
+                            const frameMsg = JSON.stringify(msg);
+                            for (const c of clients) {
+                                if (c.ws.readyState !== ws_1.WebSocket.OPEN)
+                                    continue;
+                                if (c.piFor)
+                                    continue; // skip Pi connections
+                                if (c.subscribedFarms.has(farmerId)) {
+                                    c.ws.send(frameMsg);
+                                }
                             }
                         }
                         break;
@@ -117,8 +133,17 @@ function createWsServer(server) {
             }
         });
         ws.on("close", () => {
+            const wasPiFor = client.piFor;
             clients.delete(client);
             log.info(`Client disconnected from ${ip}`);
+            // If this was a Pi, tell all browsers that the Pi is offline
+            if (wasPiFor) {
+                const stillOnline = getPiForFarm(wasPiFor);
+                if (!stillOnline) {
+                    log.info(`Pi for farm ${wasPiFor} went offline`);
+                    broadcastToFarm(wasPiFor, { type: "PI_STATUS", data: { online: false, farmerId: wasPiFor } });
+                }
+            }
         });
         ws.on("error", (err) => {
             log.warn(`Client error from ${ip}`, err.message);

@@ -52,10 +52,13 @@ services:
       FRONTEND_URL: http://localhost:3000,http://127.0.0.1:3000
       DATABASE_URL: postgresql://bioscan:bioscan@postgres:5432/bioscan
       MONGODB_URI: mongodb://mongo:27017/bioscan
+      BACKUP_CAPTURES_DIR: /app/data/pi-backups
+      PI_SYNC_ENABLED: "false"
       JWT_SECRET: bioscan-dev-secret-change-in-production
       JWT_EXPIRES_IN: 7d
     volumes:
       - ./backend/src:/app/src
+      - ./backend/data:/app/data
       - ./backend/package.json:/app/package.json
       - ./backend/package-lock.json:/app/package-lock.json
       - ./backend/tsconfig.json:/app/tsconfig.json
@@ -75,12 +78,33 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:4000/api
       NEXT_PUBLIC_WS_URL: ws://localhost:4000/ws
+      NEXT_PUBLIC_CAPTURE_REFRESH_MS: 60000
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
     depends_on:
       backend:
         condition: service_healthy
+
+  pi-sync:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      PI_SYNC_ENABLED: "true"
+      PI_SYNC_HOST: 10.1.148.191
+      PI_SYNC_PORT: 22
+      PI_SYNC_USERNAME: muneeb
+      PI_SYNC_PASSWORD: ubuntu
+      PI_SYNC_REMOTE_DIR: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups
+      PI_SYNC_INTERVAL_MS: 60000
+      BACKUP_CAPTURES_DIR: /app/data/pi-backups
+    volumes:
+      - ./scripts:/app/scripts
+      - ./backend/data:/app/data
+    command: ["node", "/app/scripts/pi-sync-runner.js"]
 
 volumes:
   postgres_data:

@@ -1,0 +1,9 @@
+tracking_id: 65
+label: butterfly
+confidence: 0.8952
+first_seen_at: 2026-04-17T18:27:21+05:00
+best_seen_at: 2026-04-17T18:27:22+05:00
+image_path: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260417_182517/images/tracking_65.jpg
+bbox_xyxy: [801, 481, 1628, 697]
+frame_size: 1920x1080
+backup_run_id: 20260417_182517

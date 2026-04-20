@@ -1,0 +1,9 @@
+tracking_id: 2
+label: bee
+confidence: 0.8312
+first_seen_at: 2026-04-17T15:23:23+05:00
+best_seen_at: 2026-04-17T15:23:24+05:00
+image_path: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260417_152307/images/tracking_2.jpg
+bbox_xyxy: [1113, 423, 1238, 483]
+frame_size: 1920x1080
+backup_run_id: 20260417_152307

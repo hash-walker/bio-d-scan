@@ -1,0 +1,9 @@
+tracking_id: 56
+label: beetle
+confidence: 0.8823
+first_seen_at: 2026-04-17T18:24:10+05:00
+best_seen_at: 2026-04-17T18:24:11+05:00
+image_path: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260417_182244/images/tracking_56.jpg
+bbox_xyxy: [1112, 426, 1390, 569]
+frame_size: 1920x1080
+backup_run_id: 20260417_182244

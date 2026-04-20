@@ -1,0 +1,9 @@
+tracking_id: 9
+label: bicycle
+confidence: 0.6710
+first_seen_at: 2026-04-17T15:07:25+05:00
+best_seen_at: 2026-04-17T15:07:25+05:00
+image_path: /home/muneeb/dev/cvml-at-the-edge/components/consumer-tracking/backups/20260417_150520/images/tracking_9.jpg
+bbox_xyxy: [535, 526, 814, 786]
+frame_size: 1920x1080
+backup_run_id: 20260417_150520
